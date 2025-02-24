@@ -3,6 +3,7 @@ import { AppConfigModule } from './config.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { NavigationModule } from './navigation/navigation.module';
+import { IncidentModule } from './incident/incident.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { NavigationModule } from './navigation/navigation.module';
     }),
     AuthModule,
     NavigationModule,
+    IncidentModule,
   ],
   controllers: [],
   providers: [],
