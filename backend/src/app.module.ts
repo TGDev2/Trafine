@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppConfigModule } from './config.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
+import { NavigationModule } from './navigation/navigation.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AuthModule } from './auth/auth.module';
       synchronize: true,
     }),
     AuthModule,
+    NavigationModule,
   ],
   controllers: [],
   providers: [],
