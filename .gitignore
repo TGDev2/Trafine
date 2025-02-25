@@ -2,10 +2,83 @@
 node_modules/
 dist/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npmrc
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# TypeScript
+*.tsbuildinfo
 
 # Système
 .DS_Store
+Thumbs.db
+
+# Éditeurs et IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+*.bak
 
 # Docker
 docker-compose.override.yml
+.dockerignore
+Dockerfile*
+
+# Tests et coverage
+/coverage/
+/junit.xml
+/karma-results.json
+/mocha.json
+/nyc_output/
+
+# Logs et fichiers de sortie
+logs/
+*.log
+*.out
+*.pid
+*.seed
+*.sqlite
+
+# Build et dépendances
+/build/
+/out/
+/bower_components/
+/.parcel-cache/
+/.cache/
+
+# Firebase et autres services cloud
+.firebase/
+.firebaserc
+
+# Git
+.git/
+.gitconfig
+.gitignore
+.gitattributes
+
+# JetBrains
+*.iml
+.idea/
+
+# Next.js
+.next/
+.vercel/
+
+# MacOS
+.AppleDouble
+.LSOverride
+Icon?
+
+# Linux
+*~
