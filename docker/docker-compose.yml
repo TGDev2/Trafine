@@ -1,15 +1,9 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:13
     container_name: trafine-postgres
     env_file:
       - ../backend/.env
-    environment:
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME}
     ports:
       - "5432:5432"
     volumes:
