@@ -33,7 +33,6 @@ Thumbs.db
 # Docker
 docker-compose.override.yml
 .dockerignore
-Dockerfile*
 
 # Tests et coverage
 /coverage/

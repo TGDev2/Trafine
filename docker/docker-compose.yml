@@ -1,15 +1,9 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:13
     container_name: trafine-postgres
     env_file:
       - ../backend/.env
-    environment:
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME}
     ports:
       - "5432:5432"
     volumes:
@@ -26,6 +20,27 @@ services:
       - "3000:3000"
     depends_on:
       - postgres
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: trafine-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+
+  mobile:
+    build:
+      context: ../mobile
+    container_name: trafine-mobile
+    ports:
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
