@@ -21,5 +21,15 @@ services:
     depends_on:
       - postgres
 
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: trafine-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
