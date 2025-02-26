@@ -30,6 +30,7 @@
     "bcrypt": "^5.1.1",
     "dotenv": "^16.4.7",
     "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.13.3",
