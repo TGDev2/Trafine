@@ -5,7 +5,7 @@ import {
   Request,
   UseGuards,
   Req,
-  Res
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
@@ -22,25 +22,27 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
-  /**
-   * Initiation de la connexion Google
-   * On utilise 'AuthGuard('google')' qui va rediriger vers la page de login Google
-   */
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req) {
-  }
+  async googleAuth(@Req() req) {}
 
-  /**
-   * Callback une fois que Google a validé l'utilisateur
-   */
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req, @Res() res: Response) {
     const user = req.user;
-
     const token = await this.authService.login(user);
+    return res.redirect(`http://localhost:3001?token=${token.access_token}`);
+  }
 
+  @Get('facebook')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuth(@Req() req) {}
+
+  @Get('facebook/callback')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuthRedirect(@Req() req, @Res() res: Response) {
+    const user = req.user;
+    const token = await this.authService.login(user);
     return res.redirect(`http://localhost:3001?token=${token.access_token}`);
   }
 }

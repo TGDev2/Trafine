@@ -27,7 +27,7 @@ export class AuthService {
    * @returns L'utilisateur validé (sans mot de passe) ou lève une exception.
    */
   async validateUser(username: string, password: string): Promise<any> {
-    const user = this.users.find(u => u.username === username);
+    const user = this.users.find((u) => u.username === username);
     if (user && (await bcrypt.compare(password, user.password))) {
       // On ne retourne pas le mot de passe
       const { password, ...result } = user;
