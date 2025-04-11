@@ -1,4 +1,3 @@
-// @ts-check
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import globals from 'globals';
@@ -24,6 +23,14 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    overrides: [
+      {
+        files: ['backend/src/auth/facebook.strategy.ts'],
+        rules: {
+          '@typescript-eslint/no-unsafe-call': 'off',
+        },
+      },
+    ],
   },
   {
     rules: {

@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 export interface User {
   id: number;
   username: string;
-  password: string; // stocké sous forme hachée
+  password: string;
 }
 
 @Injectable()
@@ -14,7 +14,7 @@ export class AuthService {
     {
       id: 1,
       username: 'testuser',
-      password: bcrypt.hashSync('test123', 10), // mot de passe haché avec bcrypt
+      password: bcrypt.hashSync('test123', 10),
     },
   ];
 
@@ -24,13 +24,16 @@ export class AuthService {
    * Valide un utilisateur par son username et son mot de passe.
    * @param username Le nom d'utilisateur.
    * @param password Le mot de passe en clair.
-   * @returns L'utilisateur validé (sans mot de passe) ou lève une exception.
+   * @returns L'utilisateur validé (sans le mot de passe) ou lève une exception.
    */
-  async validateUser(username: string, password: string): Promise<any> {
+  async validateUser(
+    username: string,
+    password: string,
+  ): Promise<Omit<User, 'password'>> {
     const user = this.users.find((u) => u.username === username);
     if (user && (await bcrypt.compare(password, user.password))) {
-      // On ne retourne pas le mot de passe
-      const { password, ...result } = user;
+      const { password: _unusedPassword, ...result } = user;
+      void _unusedPassword;
       return result;
     }
     throw new UnauthorizedException('Identifiants invalides');
@@ -41,7 +44,7 @@ export class AuthService {
    * @param user L'utilisateur authentifié.
    * @returns Un objet contenant l'access_token.
    */
-  async login(user: any) {
+  login(user: { username: string; id: number }): { access_token: string } {
     const payload = { username: user.username, sub: user.id };
     return {
       access_token: this.jwtService.sign(payload),

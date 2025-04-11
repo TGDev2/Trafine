@@ -1,3 +1,4 @@
+// backend/src/incident/incident.entity.ts
 import {
   Entity,
   Column,
@@ -8,28 +9,28 @@ import {
 @Entity()
 export class Incident {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   // Type d'incident (ex. accident, embouteillage, route fermée, contrôle policier, obstacle)
   @Column()
-  type: string;
+  type!: string;
 
   // Description optionnelle de l'incident
   @Column({ nullable: true })
-  description: string;
+  description!: string;
 
   // Coordonnées géographiques
   @Column({ type: 'float', nullable: true })
-  latitude: number;
+  latitude!: number;
 
   @Column({ type: 'float', nullable: true })
-  longitude: number;
+  longitude!: number;
 
   // Indique si l'incident a été confirmé par d'autres utilisateurs
   @Column({ default: false })
-  confirmed: boolean;
+  confirmed!: boolean;
 
   // Date de création de l'incident
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }
