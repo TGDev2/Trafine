@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { User } from '../user/user.entity';
+import { RegisterUserDto } from './auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -49,5 +50,21 @@ export class AuthService {
     return {
       access_token: this.jwtService.sign(payload),
     };
+  }
+
+  /**
+   * Crée un nouvel utilisateur (username + password),
+   * en vérifiant que le nom d’utilisateur n’existe pas déjà.
+   * @param registerUserDto Les informations d'inscription.
+   * @returns Un objet contenant l'access_token pour l’utilisateur créé.
+   */
+  async register(
+    registerUserDto: RegisterUserDto,
+  ): Promise<{ access_token: string }> {
+    const newUser = await this.userService.createUser(
+      registerUserDto.username,
+      registerUserDto.password,
+    );
+    return this.login({ username: newUser.username, id: newUser.id });
   }
 }

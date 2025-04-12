@@ -6,11 +6,13 @@ import {
   Req,
   Res,
   Request,
+  Body,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request as ExpressRequest } from 'express';
+import { RegisterUserDto } from './auth.dto';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: {
@@ -25,10 +27,13 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(
-    @Request() req: AuthenticatedRequest,
-  ): Promise<{ access_token: string }> {
+  async login(@Request() req: AuthenticatedRequest) {
     return this.authService.login(req.user);
+  }
+
+  @Post('register')
+  async register(@Body() registerUserDto: RegisterUserDto) {
+    return this.authService.register(registerUserDto);
   }
 
   @Get('google')
@@ -43,7 +48,6 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
   ): Promise<any> {
-    // Nous assurons ici que req.user est typé correctement
     const user = req.user;
     const token = await this.authService.login(user);
     return res.redirect(`http://localhost:3001?token=${token.access_token}`);
