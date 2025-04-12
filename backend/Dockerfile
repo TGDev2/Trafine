@@ -1,18 +1,16 @@
-# backend/Dockerfile
-
 # Utilisons une image Node 18 en base
 FROM node:18
 
 # Créer un répertoire de travail
 WORKDIR /usr/src/app
 
-# Copier le package.json et package-lock.json
+# Copier uniquement les fichiers package*.json
 COPY package*.json ./
 
-# Installer les dépendances
+# Installer les dépendances (les modules natifs seront compilés ici)
 RUN npm install
 
-# Copier le code du backend
+# Copier le reste du code source
 COPY . .
 
 # Construire l’application NestJS
