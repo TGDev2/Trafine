@@ -19,4 +19,21 @@ export class NavigationController {
       { avoidTolls: body.avoidTolls },
     );
   }
+
+  /**
+   * Endpoint POST /navigation/share
+   * Permet de générer un QR code pour partager un itinéraire calculé.
+   * Le QR code contient les données de l'itinéraire au format JSON.
+   */
+  @Post('share')
+  async shareRoute(
+    @Body() body: { source: string; destination: string; avoidTolls?: boolean },
+  ) {
+    const qrCodeData = await this.navigationService.generateRouteQRCode(
+      body.source,
+      body.destination,
+      { avoidTolls: body.avoidTolls },
+    );
+    return { qrCode: qrCodeData };
+  }
 }

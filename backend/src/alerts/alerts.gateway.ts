@@ -1,5 +1,3 @@
-// backend/src/alerts/alerts.gateway.ts
-
 import {
   WebSocketGateway,
   WebSocketServer,

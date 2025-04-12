@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { IncidentService } from '../incident/incident.service';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class NavigationService {
@@ -52,6 +53,32 @@ export class NavigationService {
         avoidTolls: options?.avoidTolls || false,
         recalculated: false,
       };
+    }
+  }
+
+  /**
+   * Génère un QR code à partir de l’itinéraire calculé.
+   * Le QR code contient les données de l’itinéraire au format JSON.
+   * @param source Le point de départ.
+   * @param destination Le point d'arrivée.
+   * @param options Options supplémentaires (ex. éviter les péages).
+   * @returns Une chaîne de caractères représentant le QR code en data URL.
+   */
+  async generateRouteQRCode(
+    source: string,
+    destination: string,
+    options?: { avoidTolls?: boolean },
+  ): Promise<string> {
+    // Calcul de l'itinéraire
+    const route = await this.calculateRoute(source, destination, options);
+    // Sérialisation de l'itinéraire en JSON
+    const routeData = JSON.stringify(route);
+    try {
+      // Génération du QR code en format Data URL
+      const qrCodeDataUrl = await QRCode.toDataURL(routeData);
+      return qrCodeDataUrl;
+    } catch (error) {
+      throw new Error('La génération du QR code a échoué');
     }
   }
 }
