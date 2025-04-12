@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import MapView from "./MapView";
+import RouteCalculator from "./RouteCalculator";
 
 const Dashboard = () => {
   const [incidents, setIncidents] = useState([]);
@@ -24,6 +25,8 @@ const Dashboard = () => {
 
   return (
     <div>
+      <h2>Interface de Gestion Trafine</h2>
+      <RouteCalculator />
       <h2>Carte des Incidents</h2>
       <MapView incidents={incidents} />
       <h2>Liste des Incidents</h2>
