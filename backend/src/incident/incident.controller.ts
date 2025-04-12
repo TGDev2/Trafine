@@ -1,6 +1,15 @@
-import { Controller, Get, Post, Patch, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { IncidentService } from './incident.service';
 import { Incident } from './incident.entity';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('incidents')
 export class IncidentController {
@@ -17,6 +26,7 @@ export class IncidentController {
    *   "longitude": 2.3522
    * }
    */
+  @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() body: Partial<Incident>): Promise<Incident> {
     return this.incidentService.createIncident(body);
@@ -35,6 +45,7 @@ export class IncidentController {
    * Endpoint PATCH /incidents/:id/confirm
    * Confirme un incident en fonction de son identifiant.
    */
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/confirm')
   async confirm(@Param('id') id: string): Promise<Incident> {
     return this.incidentService.confirmIncident(Number(id));
@@ -44,6 +55,7 @@ export class IncidentController {
    * Endpoint PATCH /incidents/:id/deny
    * Infirme un incident en fonction de son identifiant.
    */
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/deny')
   async deny(@Param('id') id: string): Promise<Incident> {
     return this.incidentService.denyIncident(Number(id));
