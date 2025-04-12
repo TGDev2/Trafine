@@ -1,24 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
-
-export interface User {
-  id: number;
-  username: string;
-  password: string;
-}
+import { UserService } from '../user/user.service';
+import { User } from '../user/user.entity';
 
 @Injectable()
 export class AuthService {
-  private users: User[] = [
-    {
-      id: 1,
-      username: 'testuser',
-      password: bcrypt.hashSync('test123', 10),
-    },
-  ];
-
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private userService: UserService,
+  ) {}
 
   /**
    * Valide un utilisateur par son username et son mot de passe.
@@ -30,13 +20,23 @@ export class AuthService {
     username: string,
     password: string,
   ): Promise<Omit<User, 'password'>> {
-    const user = this.users.find((u) => u.username === username);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const { password: _unusedPassword, ...result } = user;
-      void _unusedPassword;
-      return result;
+    const user = await this.userService.findByUsername(username);
+    if (!user) {
+      throw new UnauthorizedException(
+        'Nom d’utilisateur ou mot de passe incorrect',
+      );
     }
-    throw new UnauthorizedException('Identifiants invalides');
+    const isPasswordValid = await this.userService.verifyPassword(
+      user,
+      password,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException(
+        'Nom d’utilisateur ou mot de passe incorrect',
+      );
+    }
+    const { password: _ignored, ...result } = user;
+    return result;
   }
 
   /**

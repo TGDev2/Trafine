@@ -8,6 +8,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleStrategy } from './google.strategy';
 import { FacebookStrategy } from './facebook.strategy';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { FacebookStrategy } from './facebook.strategy';
       inject: [ConfigService],
     }),
     ConfigModule,
+    UserModule,
   ],
   providers: [
     AuthService,
