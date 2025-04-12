@@ -7,19 +7,13 @@ export class NavigationController {
 
   /**
    * Endpoint POST /navigation/calculate
-   * Permet de calculer un itinéraire entre un point de départ et une destination.
-   * Exemple de payload JSON :
-   * {
-   *   "source": "Paris",
-   *   "destination": "Lyon",
-   *   "avoidTolls": true
-   * }
+   * Permet de calculer un itinéraire entre un point de départ et une destination en tenant compte des incidents.
    */
   @Post('calculate')
-  calculateRoute(
+  async calculateRoute(
     @Body() body: { source: string; destination: string; avoidTolls?: boolean },
   ) {
-    return this.navigationService.calculateRoute(
+    return await this.navigationService.calculateRoute(
       body.source,
       body.destination,
       { avoidTolls: body.avoidTolls },
