@@ -39,4 +39,13 @@ export class IncidentController {
   async confirm(@Param('id') id: string): Promise<Incident> {
     return this.incidentService.confirmIncident(Number(id));
   }
+
+  /**
+   * Endpoint PATCH /incidents/:id/deny
+   * Infirme un incident en fonction de son identifiant.
+   */
+  @Patch(':id/deny')
+  async deny(@Param('id') id: string): Promise<Incident> {
+    return this.incidentService.denyIncident(Number(id));
+  }
 }

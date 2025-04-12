@@ -40,6 +40,23 @@ export class IncidentService {
       throw new NotFoundException(`Incident with id ${id} not found`);
     }
     incident.confirmed = true;
+    incident.denied = false;
+    return await this.incidentRepository.save(incident);
+  }
+
+  /**
+   * Infirme un incident en mettant à jour son statut.
+   * @param id L'identifiant de l'incident.
+   * @returns L'incident mis à jour.
+   * @throws NotFoundException si l'incident n'existe pas.
+   */
+  async denyIncident(id: number): Promise<Incident> {
+    const incident = await this.incidentRepository.findOneBy({ id });
+    if (!incident) {
+      throw new NotFoundException(`Incident with id ${id} not found`);
+    }
+    incident.denied = true;
+    incident.confirmed = false;
     return await this.incidentRepository.save(incident);
   }
 }

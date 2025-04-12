@@ -1,4 +1,3 @@
-// backend/src/incident/incident.entity.ts
 import {
   Entity,
   Column,
@@ -29,6 +28,10 @@ export class Incident {
   // Indique si l'incident a été confirmé par d'autres utilisateurs
   @Column({ default: false })
   confirmed!: boolean;
+
+  // Indique si l'incident a été infirmé par d'autres utilisateurs
+  @Column({ default: false })
+  denied!: boolean;
 
   // Date de création de l'incident
   @CreateDateColumn()
