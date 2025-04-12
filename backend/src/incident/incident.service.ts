@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Incident } from './incident.entity';
+import { AlertsGateway } from '../alerts/alerts.gateway';
 
 @Injectable()
 export class IncidentService {
   constructor(
     @InjectRepository(Incident)
     private incidentRepository: Repository<Incident>,
+    private alertsGateway: AlertsGateway,
   ) {}
 
   /**
@@ -41,7 +43,11 @@ export class IncidentService {
     }
     incident.confirmed = true;
     incident.denied = false;
-    return await this.incidentRepository.save(incident);
+    const updatedIncident = await this.incidentRepository.save(incident);
+
+    this.alertsGateway.broadcastIncidentAlert(updatedIncident);
+
+    return updatedIncident;
   }
 
   /**

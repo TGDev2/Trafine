@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { NavigationModule } from './navigation/navigation.module';
 import { IncidentModule } from './incident/incident.module';
 import { UserModule } from './user/user.module';
+import { AlertsModule } from './alerts/alerts.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { UserModule } from './user/user.module';
     NavigationModule,
     IncidentModule,
     UserModule,
+    AlertsModule,
   ],
   controllers: [],
   providers: [],
