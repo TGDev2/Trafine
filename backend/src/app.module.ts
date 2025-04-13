@@ -7,6 +7,7 @@ import { IncidentModule } from './incident/incident.module';
 import { UserModule } from './user/user.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { StatisticsModule } from './statistics/statistics.module';
     UserModule,
     AlertsModule,
     StatisticsModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [],
