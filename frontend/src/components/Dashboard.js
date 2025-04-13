@@ -5,6 +5,7 @@ import { io } from "socket.io-client";
 
 const Dashboard = () => {
   const [incidents, setIncidents] = useState([]);
+  const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -44,7 +45,6 @@ const Dashboard = () => {
         throw new Error("Erreur lors de la confirmation de l'incident");
       }
       const updatedIncident = await response.json();
-      // Mettre à jour la liste des incidents avec l'incident confirmé
       setIncidents((prevIncidents) =>
         prevIncidents.map((incident) =>
           incident.id === updatedIncident.id ? updatedIncident : incident
@@ -73,7 +73,6 @@ const Dashboard = () => {
         throw new Error("Erreur lors de l'infirmation de l'incident");
       }
       const updatedIncident = await response.json();
-      // Mettre à jour la liste des incidents avec l'incident infirmé
       setIncidents((prevIncidents) =>
         prevIncidents.map((incident) =>
           incident.id === updatedIncident.id ? updatedIncident : incident
@@ -98,20 +97,46 @@ const Dashboard = () => {
         setLoading(false);
       });
 
+    // Récupération des statistiques de trafic avec gestion des erreurs
+    if (token) {
+      fetch("http://localhost:3000/statistics", {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Erreur ${res.status}: ${res.statusText}`);
+          }
+          return res.json();
+        })
+        .then((data) => setStatistics(data))
+        .catch((err) => {
+          console.error(
+            "Erreur lors de la récupération des statistiques:",
+            err
+          );
+          // Pour éviter une erreur lors du rendu, on définit une valeur par défaut
+          setStatistics({
+            totalIncidents: 0,
+            confirmedIncidents: 0,
+            deniedIncidents: 0,
+            incidentsByType: {},
+          });
+        });
+    }
+
     // Établir la connexion WebSocket avec le backend
     const socket = io("http://localhost:3000", { transports: ["websocket"] });
-
-    // Écouter les alertes d'incidents en temps réel
     socket.on("incidentAlert", (incident) => {
       console.log("Alerte reçue pour l'incident :", incident);
       handleIncidentAlert(incident);
     });
-
-    // Nettoyage de la connexion lors du démontage du composant
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [token]);
 
   if (loading) {
     return <div>Chargement...</div>;
@@ -122,6 +147,36 @@ const Dashboard = () => {
       <h2>Interface de Gestion Trafine</h2>
       <RouteCalculator />
       {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
+
+      {/* Section Statistiques de Trafic */}
+      {statistics && (
+        <div>
+          <h2>Statistiques de Trafic</h2>
+          <p>
+            <strong>Total incidents :</strong> {statistics.totalIncidents}
+          </p>
+          <p>
+            <strong>Incidents confirmés :</strong>{" "}
+            {statistics.confirmedIncidents}
+          </p>
+          <p>
+            <strong>Incidents infirmés :</strong> {statistics.deniedIncidents}
+          </p>
+          <div>
+            <h3>Répartition par type</h3>
+            <ul>
+              {Object.entries(statistics.incidentsByType || {}).map(
+                ([type, count]) => (
+                  <li key={type}>
+                    <strong>{type}</strong> : {count}
+                  </li>
+                )
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
+
       <h2>Carte des Incidents</h2>
       <MapView incidents={incidents} />
       <h2>Liste des Incidents</h2>

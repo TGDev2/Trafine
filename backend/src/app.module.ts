@@ -6,6 +6,7 @@ import { NavigationModule } from './navigation/navigation.module';
 import { IncidentModule } from './incident/incident.module';
 import { UserModule } from './user/user.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { StatisticsModule } from './statistics/statistics.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AlertsModule } from './alerts/alerts.module';
     IncidentModule,
     UserModule,
     AlertsModule,
+    StatisticsModule,
   ],
   controllers: [],
   providers: [],
