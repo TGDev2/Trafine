@@ -67,4 +67,35 @@ export class AuthService {
     );
     return this.login({ username: newUser.username, id: newUser.id });
   }
+
+  /**
+   * Valide un utilisateur OAuth.
+   * Si l'utilisateur n'existe pas, il est créé.
+   * @param provider Le fournisseur OAuth (google, facebook, etc.)
+   * @param profile Le profil reçu du fournisseur OAuth.
+   * @returns L'objet utilisateur normalisé (sans le mot de passe).
+   */
+  async validateOAuthLogin(
+    provider: string,
+    profile: any,
+  ): Promise<Omit<User, 'password'>> {
+    const email =
+      profile.emails && profile.emails.length > 0
+        ? profile.emails[0].value
+        : null;
+    const displayName =
+      profile.displayName ||
+      (profile.name
+        ? `${profile.name.givenName} ${profile.name.familyName}`
+        : null);
+    const oauthId = profile.id;
+    const user = await this.userService.findOrCreateOAuthUser(
+      provider,
+      oauthId,
+      email,
+      displayName,
+    );
+    const { password, ...result } = user;
+    return result;
+  }
 }
