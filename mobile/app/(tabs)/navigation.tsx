@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ActivityIndicator, Alert, Text } from "react-native";
 import MapView, { Marker, Callout, Region } from "react-native-maps";
+import io from "socket.io-client";
 
 interface Incident {
   id: number;
@@ -12,7 +13,7 @@ interface Incident {
 }
 
 const INITIAL_REGION: Region = {
-  latitude: 46.603354, // Centre approximatif de la France
+  latitude: 46.603354,
   longitude: 1.8883335,
   latitudeDelta: 8,
   longitudeDelta: 8,
@@ -22,6 +23,7 @@ export default function NavigationScreen() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Récupération initiale des incidents via REST
   useEffect(() => {
     fetch("http://localhost:3000/incidents")
       .then((response) => {
@@ -39,6 +41,30 @@ export default function NavigationScreen() {
       .finally(() => {
         setLoading(false);
       });
+  }, []);
+
+  // Établir une connexion Socket.IO pour recevoir les alertes en temps réel
+  useEffect(() => {
+    const socket = io("http://localhost:3000", { transports: ["websocket"] });
+
+    socket.on("incidentAlert", (incident: Incident) => {
+      setIncidents((prevIncidents) => {
+        const index = prevIncidents.findIndex((i) => i.id === incident.id);
+        if (index === -1) {
+          // Nouvel incident, ajout à la liste
+          return [...prevIncidents, incident];
+        } else {
+          // Mise à jour de l’incident existant
+          const updatedIncidents = [...prevIncidents];
+          updatedIncidents[index] = incident;
+          return updatedIncidents;
+        }
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   if (loading) {
