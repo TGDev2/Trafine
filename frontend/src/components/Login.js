@@ -32,6 +32,16 @@ const Login = ({ onLoginSuccess }) => {
     }
   };
 
+  const handleGoogleLogin = () => {
+    // Rediriger l'utilisateur vers l'endpoint OAuth de Google du backend
+    window.location.href = "http://localhost:3000/auth/google";
+  };
+
+  const handleFacebookLogin = () => {
+    // Rediriger l'utilisateur vers l'endpoint OAuth de Facebook du backend
+    window.location.href = "http://localhost:3000/auth/facebook";
+  };
+
   return (
     <div style={{ margin: "0 auto", maxWidth: "400px", padding: "20px" }}>
       <h2>Connexion</h2>
@@ -60,11 +70,23 @@ const Login = ({ onLoginSuccess }) => {
         <button
           type="submit"
           disabled={loading}
-          style={{ padding: "10px 20px" }}
+          style={{ padding: "10px 20px", marginBottom: "10px" }}
         >
           {loading ? "Connexion en cours..." : "Se connecter"}
         </button>
       </form>
+      <div style={{ textAlign: "center", marginTop: "20px" }}>
+        <p>Ou se connecter avec :</p>
+        <button
+          onClick={handleGoogleLogin}
+          style={{ padding: "10px 20px", marginRight: "10px" }}
+        >
+          Google
+        </button>
+        <button onClick={handleFacebookLogin} style={{ padding: "10px 20px" }}>
+          Facebook
+        </button>
+      </div>
     </div>
   );
 };

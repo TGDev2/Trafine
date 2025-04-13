@@ -7,8 +7,18 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsAuthenticated(!!token);
+    // Vérifier la présence d’un token dans l’URL (après redirection OAuth)
+    const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get("token");
+    if (token) {
+      localStorage.setItem("token", token);
+      setIsAuthenticated(true);
+      // Nettoyer l’URL en retirant les paramètres de requête
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      const storedToken = localStorage.getItem("token");
+      setIsAuthenticated(!!storedToken);
+    }
   }, []);
 
   const handleLoginSuccess = () => {
