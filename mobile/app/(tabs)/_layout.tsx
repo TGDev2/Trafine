@@ -57,6 +57,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="report-incident"
+        options={{
+          title: "Report",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="exclamationmark.circle" color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
