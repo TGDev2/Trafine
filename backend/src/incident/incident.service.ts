@@ -32,6 +32,31 @@ export class IncidentService {
   }
 
   /**
+   * Récupère tous les incidents proches d'une position donnée.
+   * @param latitude Latitude du centre.
+   * @param longitude Longitude du centre.
+   * @param delta Valeur maximale de différence en degrés pour qualifier la proximité.
+   * @returns Une liste d'incidents se trouvant dans le périmètre défini.
+   */
+  async findIncidentsNear(
+    latitude: number,
+    longitude: number,
+    delta: number,
+  ): Promise<Incident[]> {
+    return await this.incidentRepository
+      .createQueryBuilder('incident')
+      .where('ABS(incident.latitude - :latitude) <= :delta', {
+        latitude,
+        delta,
+      })
+      .andWhere('ABS(incident.longitude - :longitude) <= :delta', {
+        longitude,
+        delta,
+      })
+      .getMany();
+  }
+
+  /**
    * Confirme un incident en mettant à jour son statut.
    * @param id L'identifiant de l'incident.
    * @returns L'incident mis à jour.
