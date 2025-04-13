@@ -15,4 +15,14 @@ export class StatisticsController {
   async getStatistics() {
     return await this.statisticsService.getTrafficStatistics();
   }
+
+  /**
+   * GET /statistics/prediction
+   * Renvoie la prédiction du niveau de congestion basé sur les incidents récents.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('prediction')
+  async getPrediction() {
+    return await this.statisticsService.getCongestionPrediction();
+  }
 }
