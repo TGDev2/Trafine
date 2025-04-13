@@ -10,6 +10,7 @@ import {
 import { IncidentService } from './incident.service';
 import { Incident } from './incident.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateIncidentDto } from './create-incident.dto';
 
 @Controller('incidents')
 export class IncidentController {
@@ -28,8 +29,10 @@ export class IncidentController {
    */
   @UseGuards(JwtAuthGuard)
   @Post()
-  async create(@Body() body: Partial<Incident>): Promise<Incident> {
-    return this.incidentService.createIncident(body);
+  async create(
+    @Body() createIncidentDto: CreateIncidentDto,
+  ): Promise<Incident> {
+    return this.incidentService.createIncident(createIncidentDto);
   }
 
   /**

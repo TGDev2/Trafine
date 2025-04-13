@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Incident } from './incident.entity';
 import { AlertsGateway } from '../alerts/alerts.gateway';
+import { CreateIncidentDto } from './create-incident.dto';
 
 @Injectable()
 export class IncidentService {
@@ -14,10 +15,10 @@ export class IncidentService {
 
   /**
    * Crée un nouvel incident avec les données fournies.
-   * @param data Données partielles de l'incident.
+   * @param data Données validées de l'incident.
    * @returns L'incident créé.
    */
-  async createIncident(data: Partial<Incident>): Promise<Incident> {
+  async createIncident(data: CreateIncidentDto): Promise<Incident> {
     const incident = this.incidentRepository.create(data);
     return await this.incidentRepository.save(incident);
   }
