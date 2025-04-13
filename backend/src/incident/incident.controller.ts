@@ -11,6 +11,8 @@ import { IncidentService } from './incident.service';
 import { Incident } from './incident.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateIncidentDto } from './create-incident.dto';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 
 @Controller('incidents')
 export class IncidentController {
@@ -19,13 +21,6 @@ export class IncidentController {
   /**
    * Endpoint POST /incidents
    * Permet de créer un nouvel incident.
-   * Exemple de payload JSON :
-   * {
-   *   "type": "accident",
-   *   "description": "Collision sur autoroute",
-   *   "latitude": 48.8566,
-   *   "longitude": 2.3522
-   * }
    */
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -47,8 +42,10 @@ export class IncidentController {
   /**
    * Endpoint PATCH /incidents/:id/confirm
    * Confirme un incident en fonction de son identifiant.
+   * Seuls les utilisateurs authentifiés avec le rôle 'user' peuvent confirmer un incident.
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('user')
   @Patch(':id/confirm')
   async confirm(@Param('id') id: string): Promise<Incident> {
     return this.incidentService.confirmIncident(Number(id));
@@ -57,8 +54,10 @@ export class IncidentController {
   /**
    * Endpoint PATCH /incidents/:id/deny
    * Infirme un incident en fonction de son identifiant.
+   * Seuls les utilisateurs authentifiés avec le rôle 'user' peuvent infirmer un incident.
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('user')
   @Patch(':id/deny')
   async deny(@Param('id') id: string): Promise<Incident> {
     return this.incidentService.denyIncident(Number(id));
