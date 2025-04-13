@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -19,22 +19,15 @@ export default function CalculateRouteScreen() {
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [route, setRoute] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // Récupération initiale de la position actuelle
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission refusée",
-          "La géolocalisation est nécessaire pour calculer l'itinéraire."
-        );
-        setLoadingLocation(false);
-        return;
-      }
       try {
         const loc = await Location.getCurrentPositionAsync({});
         setCurrentLocation(loc.coords);
-      } catch (error) {
+      } catch (err) {
         Alert.alert("Erreur", "Impossible de récupérer la position actuelle.");
       } finally {
         setLoadingLocation(false);
@@ -42,18 +35,17 @@ export default function CalculateRouteScreen() {
     })();
   }, []);
 
-  const handleCalculateRoute = async () => {
-    if (!currentLocation) {
-      Alert.alert("Erreur", "Position actuelle non disponible.");
-      return;
-    }
-    if (!destination) {
-      Alert.alert("Erreur", "Veuillez saisir une destination.");
-      return;
-    }
+  /**
+   * Fonction qui met à jour la position actuelle et calcule l'itinéraire
+   */
+  const handleCalculateRoute = useCallback(async () => {
     setLoadingRoute(true);
+    setError(null);
     try {
-      const sourceString = `${currentLocation.latitude},${currentLocation.longitude}`;
+      // Actualise la position de l'utilisateur à chaque appel
+      const loc = await Location.getCurrentPositionAsync({});
+      setCurrentLocation(loc.coords);
+      const sourceString = `${loc.coords.latitude},${loc.coords.longitude}`;
       const response = await fetch(
         "http://localhost:3000/navigation/calculate",
         {
@@ -63,22 +55,43 @@ export default function CalculateRouteScreen() {
           },
           body: JSON.stringify({
             source: sourceString,
-            destination: destination,
-            avoidTolls: avoidTolls,
+            destination,
+            avoidTolls,
           }),
         }
       );
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Erreur lors du calcul de l'itinéraire.");
+        throw new Error("Erreur lors du calcul de l'itinéraire");
       }
       const data = await response.json();
       setRoute(data);
-    } catch (error: any) {
-      Alert.alert("Erreur", error.message);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoadingRoute(false);
     }
+  }, [destination, avoidTolls]);
+
+  /**
+   * Mise en place d’un intervalle de recalcul automatique lorsque l’itinéraire est affiché.
+   */
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    if (route) {
+      // Recalcule l'itinéraire toutes les 30 secondes
+      intervalId = setInterval(() => {
+        handleCalculateRoute();
+      }, 30000);
+    }
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [route, handleCalculateRoute]);
+
+  const handleSubmit = () => {
+    handleCalculateRoute();
   };
 
   if (loadingLocation) {
@@ -106,11 +119,7 @@ export default function CalculateRouteScreen() {
         <Text style={styles.label}>Éviter les péages :</Text>
         <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
       </View>
-      <Button
-        title="Calculer"
-        onPress={handleCalculateRoute}
-        disabled={loadingRoute}
-      />
+      <Button title="Calculer" onPress={handleSubmit} disabled={loadingRoute} />
       {loadingRoute && (
         <ActivityIndicator
           style={styles.loadingIndicator}
@@ -118,22 +127,26 @@ export default function CalculateRouteScreen() {
           color="#0a7ea4"
         />
       )}
+      {error && <Text style={styles.error}>Erreur : {error}</Text>}
       {route && (
         <View style={styles.routeContainer}>
           <Text style={styles.routeTitle}>Itinéraire calculé</Text>
-          <Text>Distance : {route.distance}</Text>
-          <Text>Durée : {route.duration}</Text>
           <Text>
-            Type d'itinéraire : {route.recalculated ? "Recalculé" : "Optimal"}
+            <Text style={styles.bold}>Distance :</Text> {route.distance}
+          </Text>
+          <Text>
+            <Text style={styles.bold}>Durée :</Text> {route.duration}
+          </Text>
+          <Text>
+            <Text style={styles.bold}>Type d’itinéraire :</Text>{" "}
+            {route.recalculated
+              ? "Recalculé en raison d'incidents confirmés"
+              : "Optimal"}
           </Text>
           <Text style={styles.instructionsTitle}>Instructions :</Text>
-          {route.instructions &&
-            route.instructions.map((instr: string, index: number) => (
-              <Text
-                key={index}
-                style={styles.instruction}
-              >{`\u2022 ${instr}`}</Text>
-            ))}
+          {route.instructions.map((instr: string, index: number) => (
+            <Text key={index}>{`\u2022 ${instr}`}</Text>
+          ))}
         </View>
       )}
     </View>
@@ -142,8 +155,11 @@ export default function CalculateRouteScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: 16,
+    marginBottom: 20,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 4,
   },
   loaderContainer: {
     flex: 1,
@@ -157,11 +173,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   inputGroup: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   label: {
+    marginRight: 10,
     fontSize: 16,
-    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
@@ -173,7 +189,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   routeContainer: {
-    marginTop: 20,
+    marginTop: 15,
     padding: 12,
     borderWidth: 1,
     borderColor: "#ccc",
@@ -188,7 +204,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontWeight: "bold",
   },
-  instruction: {
-    fontSize: 14,
+  bold: {
+    fontWeight: "bold",
+  },
+  error: {
+    color: "red",
+    marginTop: 8,
   },
 });
