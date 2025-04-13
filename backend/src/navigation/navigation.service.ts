@@ -27,8 +27,9 @@ export class NavigationService {
   }
 
   /**
-   * Simule le calcul d'un itinéraire entre deux points en tenant compte des incidents confirmés.
-   * Si la source est au format "latitude,longitude", seule la zone proche sera utilisée pour filtrer les incidents.
+   * Calcule un itinéraire entre deux points en tenant compte des incidents confirmés.
+   * Le calcul de l'itinéraire est dynamique : il augmente la distance et la durée estimées
+   * en fonction du nombre d'incidents confirmés à proximité du point de départ.
    * @param source Le point de départ (peut être une adresse ou des coordonnées au format "lat,lon").
    * @param destination Le point d'arrivée.
    * @param options Options supplémentaires (ex. éviter les péages).
@@ -55,40 +56,46 @@ export class NavigationService {
       incidents = await this.incidentService.getAllIncidents();
     }
 
-    // Vérifie s'il existe au moins un incident confirmé dans la zone filtrée
-    const hasConfirmedIncident = incidents.some(
+    // Calcul dynamique basé sur le nombre d'incidents confirmés
+    const confirmedIncidents = incidents.filter(
       (incident) => incident.confirmed,
     );
+    const confirmedCount = confirmedIncidents.length;
 
-    if (hasConfirmedIncident) {
-      return {
-        source,
-        destination,
-        distance: '12 km',
-        duration: '20 minutes',
-        instructions: [
-          `Départ de ${source}`,
-          "Itinéraire modifié en raison d'un incident confirmé sur la route",
-          `Arrivée à ${destination}`,
-        ],
-        avoidTolls: options?.avoidTolls || false,
-        recalculated: true,
-      };
+    const baseDistance = 10; // km de base
+    const baseDuration = 15; // minutes de base
+
+    const additionalDistance = confirmedCount * 2; // km ajoutés par incident confirmé
+    const additionalDuration = confirmedCount * 3; // minutes ajoutées par incident confirmé
+
+    const finalDistance = baseDistance + additionalDistance;
+    const finalDuration = baseDuration + additionalDuration;
+
+    // Construction des instructions
+    let instructions;
+    if (confirmedCount > 0) {
+      instructions = [
+        `Départ de ${source}`,
+        `Trafic perturbé avec ${confirmedCount} incident(s) confirmé(s), itinéraire ajusté`,
+        `Arrivée à ${destination}`,
+      ];
     } else {
-      return {
-        source,
-        destination,
-        distance: '10 km',
-        duration: '15 minutes',
-        instructions: [
-          `Départ de ${source}`,
-          'Suivre la route principale',
-          `Arrivée à ${destination}`,
-        ],
-        avoidTolls: options?.avoidTolls || false,
-        recalculated: false,
-      };
+      instructions = [
+        `Départ de ${source}`,
+        'Suivre la route principale',
+        `Arrivée à ${destination}`,
+      ];
     }
+
+    return {
+      source,
+      destination,
+      distance: `${finalDistance} km`,
+      duration: `${finalDuration} minutes`,
+      instructions,
+      avoidTolls: options?.avoidTolls || false,
+      recalculated: confirmedCount > 0,
+    };
   }
 
   /**
