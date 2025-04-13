@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ActivityIndicator, Alert, Text } from "react-native";
 import MapView, { Marker, Callout, Region } from "react-native-maps";
 import io from "socket.io-client";
+import * as Location from "expo-location";
 
 interface Incident {
   id: number;
@@ -12,7 +13,7 @@ interface Incident {
   confirmed: boolean;
 }
 
-const INITIAL_REGION: Region = {
+const DEFAULT_REGION: Region = {
   latitude: 46.603354,
   longitude: 1.8883335,
   latitudeDelta: 8,
@@ -22,6 +23,7 @@ const INITIAL_REGION: Region = {
 export default function NavigationScreen() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [currentLocation, setCurrentLocation] = useState<Region | null>(null);
 
   // Récupération initiale des incidents via REST
   useEffect(() => {
@@ -67,6 +69,39 @@ export default function NavigationScreen() {
     };
   }, []);
 
+  // Implémentation de la géolocalisation en temps réel
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission refusée",
+          "La géolocalisation est nécessaire pour cette fonctionnalité."
+        );
+        return;
+      }
+      const locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Highest,
+          timeInterval: 5000,
+          distanceInterval: 10,
+        },
+        (location) => {
+          const { latitude, longitude } = location.coords;
+          setCurrentLocation({
+            latitude,
+            longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+        }
+      );
+      return () => {
+        locationSubscription.remove();
+      };
+    })();
+  }, []);
+
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -76,7 +111,10 @@ export default function NavigationScreen() {
   }
 
   return (
-    <MapView style={styles.map} initialRegion={INITIAL_REGION}>
+    <MapView
+      style={styles.map}
+      initialRegion={currentLocation ? currentLocation : DEFAULT_REGION}
+    >
       {incidents.map((incident) => {
         if (incident.latitude && incident.longitude) {
           return (
@@ -101,6 +139,16 @@ export default function NavigationScreen() {
         }
         return null;
       })}
+      {currentLocation && (
+        <Marker
+          coordinate={{
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+          }}
+          title="Ma position"
+          pinColor="blue"
+        />
+      )}
     </MapView>
   );
 }
