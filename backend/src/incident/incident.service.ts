@@ -15,12 +15,16 @@ export class IncidentService {
 
   /**
    * Crée un nouvel incident avec les données fournies.
+   * Diffuse immédiatement une alerte via WebSocket afin d'informer les utilisateurs.
    * @param data Données validées de l'incident.
    * @returns L'incident créé.
    */
   async createIncident(data: CreateIncidentDto): Promise<Incident> {
     const incident = this.incidentRepository.create(data);
-    return await this.incidentRepository.save(incident);
+    const savedIncident = await this.incidentRepository.save(incident);
+    // Diffusion de l'alerte dès la création de l'incident
+    this.alertsGateway.broadcastIncidentAlert(savedIncident);
+    return savedIncident;
   }
 
   /**
@@ -71,6 +75,7 @@ export class IncidentService {
     incident.denied = false;
     const updatedIncident = await this.incidentRepository.save(incident);
 
+    // Diffuser l'alerte de confirmation en temps réel
     this.alertsGateway.broadcastIncidentAlert(updatedIncident);
 
     return updatedIncident;
