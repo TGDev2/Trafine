@@ -94,6 +94,11 @@ export class IncidentService {
     }
     incident.denied = true;
     incident.confirmed = false;
-    return await this.incidentRepository.save(incident);
+    const updatedIncident = await this.incidentRepository.save(incident);
+
+    // Diffuser l'alerte d'infirmation en temps réel pour synchroniser l'état sur tous les clients
+    this.alertsGateway.broadcastIncidentAlert(updatedIncident);
+
+    return updatedIncident;
   }
 }
