@@ -37,7 +37,7 @@ export default function CalculateRouteScreen() {
   }, []);
 
   /**
-   * Fonction qui met à jour la position actuelle et calcule l'itinéraire
+   * Met à jour la position de l’utilisateur et calcule l’itinéraire.
    */
   const handleCalculateRoute = useCallback(async () => {
     setLoadingRoute(true);
@@ -73,12 +73,11 @@ export default function CalculateRouteScreen() {
     }
   }, [destination, avoidTolls]);
 
-  // Remplacement de l'intervalle de polling par une écoute en temps réel via Socket.IO
+  // Souscription à la réception d'alertes via Socket.IO pour déclencher un recalcul
   useEffect(() => {
-    if (!route) return; // On ne souscrit qu'une fois qu'un itinéraire est affiché
+    if (!route) return;
     const socket = io("http://localhost:3000", { transports: ["websocket"] });
     const onIncidentAlert = () => {
-      // Dès réception d'une alerte, déclenchement du recalcul de l'itinéraire
       handleCalculateRoute();
     };
     socket.on("incidentAlert", onIncidentAlert);
@@ -126,27 +125,31 @@ export default function CalculateRouteScreen() {
         />
       )}
       {error && <Text style={styles.error}>Erreur : {error}</Text>}
-      {route && (
-        <View style={styles.routeContainer}>
-          <Text style={styles.routeTitle}>Itinéraire calculé</Text>
-          <Text>
-            <Text style={styles.bold}>Distance :</Text> {route.distance}
-          </Text>
-          <Text>
-            <Text style={styles.bold}>Durée :</Text> {route.duration}
-          </Text>
-          <Text>
-            <Text style={styles.bold}>Type d’itinéraire :</Text>{" "}
-            {route.recalculated
-              ? "Recalculé en raison d'incidents confirmés"
-              : "Optimal"}
-          </Text>
-          <Text style={styles.instructionsTitle}>Instructions :</Text>
-          {route.instructions.map((instr: string, index: number) => (
-            <Text key={index}>{instr}</Text>
-          ))}
-        </View>
-      )}
+      {route &&
+        route.routes &&
+        route.routes.map((r: any, index: number) => (
+          <View key={index} style={styles.routeContainer}>
+            <Text style={styles.routeTitle}>
+              Itinéraire alternatif {index + 1}
+            </Text>
+            <Text>
+              <Text style={styles.bold}>Distance :</Text> {r.distance}
+            </Text>
+            <Text>
+              <Text style={styles.bold}>Durée :</Text> {r.duration}
+            </Text>
+            <Text>
+              <Text style={styles.bold}>Type d’itinéraire :</Text>{" "}
+              {r.recalculated
+                ? "Recalculé en raison d'incidents confirmés"
+                : "Optimal"}
+            </Text>
+            <Text style={styles.instructionsTitle}>Instructions :</Text>
+            {r.instructions.map((instr: string, idx: number) => (
+              <Text key={idx}>{instr}</Text>
+            ))}
+          </View>
+        ))}
     </View>
   );
 }

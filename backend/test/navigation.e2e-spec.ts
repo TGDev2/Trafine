@@ -21,25 +21,30 @@ describe('Navigation API (e2e)', () => {
     }
   });
 
-  it('/navigation/calculate (POST) should calculate the route correctly', async () => {
+  it('/navigation/calculate (POST) should calculate alternative routes correctly', async () => {
     const response = await request(app.getHttpServer())
       .post('/navigation/calculate')
       .send({
-        source: '48.8566, 2.3522', // Coordonnées pour Paris
-        destination: '45.7640, 4.8357', // Coordonnées pour Lyon
+        source: '48.8566, 2.3522',
+        destination: '45.7640, 4.8357',
         avoidTolls: true,
       })
       .expect(200);
 
     const body = response.body;
-    expect(body).toHaveProperty('source', '48.8566, 2.3522');
-    expect(body).toHaveProperty('destination', '45.7640, 4.8357');
-    expect(body).toHaveProperty('distance');
-    expect(body).toHaveProperty('duration');
-    expect(body).toHaveProperty('instructions');
-    expect(Array.isArray(body.instructions)).toBe(true);
-    expect(body).toHaveProperty('avoidTolls', true);
-    expect(typeof body.recalculated).toBe('boolean');
+    expect(body).toHaveProperty('routes');
+    expect(Array.isArray(body.routes)).toBe(true);
+    expect(body.routes.length).toBeGreaterThanOrEqual(1);
+    for (const route of body.routes) {
+      expect(route).toHaveProperty('source', '48.8566, 2.3522');
+      expect(route).toHaveProperty('destination', '45.7640, 4.8357');
+      expect(route).toHaveProperty('distance');
+      expect(route).toHaveProperty('duration');
+      expect(route).toHaveProperty('instructions');
+      expect(Array.isArray(route.instructions)).toBe(true);
+      expect(route).toHaveProperty('avoidTolls', true);
+      expect(typeof route.recalculated).toBe('boolean');
+    }
   });
 
   it('/navigation/share (POST) should generate a valid QR code', async () => {

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { NavigationController } from './navigation.controller';
 import { NavigationService } from './navigation.service';
 import { IncidentModule } from '../incident/incident.module';
-import { RouteCalculationStrategy } from './route-calculation.strategy';
+import { RouteCalculationStrategyImpl } from './route-calculation.strategy';
 
 @Module({
   imports: [IncidentModule],
@@ -11,7 +11,7 @@ import { RouteCalculationStrategy } from './route-calculation.strategy';
     NavigationService,
     {
       provide: 'RouteCalculationStrategy',
-      useClass: RouteCalculationStrategy,
+      useClass: RouteCalculationStrategyImpl,
     },
   ],
   exports: [NavigationService],

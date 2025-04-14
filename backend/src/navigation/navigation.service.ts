@@ -13,13 +13,13 @@ export class NavigationService {
   ) {}
 
   /**
-   * Délègue le calcul d’itinéraire à la stratégie injectée.
+   * Renvoie les itinéraires proposés sous forme d’un tableau d’alternatives.
    */
   async calculateRoute(
     source: string,
     destination: string,
     options?: { avoidTolls?: boolean },
-  ): Promise<RouteResult> {
+  ): Promise<{ routes: RouteResult[] }> {
     return await this.routeCalculationStrategy.calculateRoute(
       source,
       destination,
@@ -28,17 +28,17 @@ export class NavigationService {
   }
 
   /**
-   * Génère un QR code représentant l’itinéraire calculé.
+   * Génère un QR code représentant l’ensemble des itinéraires calculés.
    */
   async generateRouteQRCode(
     source: string,
     destination: string,
     options?: { avoidTolls?: boolean },
   ): Promise<string> {
-    const route = await this.calculateRoute(source, destination, options);
-    const routeData = JSON.stringify(route);
+    const routeData = await this.calculateRoute(source, destination, options);
+    const routeDataStr = JSON.stringify(routeData);
     try {
-      const qrCodeDataUrl = await QRCode.toDataURL(routeData);
+      const qrCodeDataUrl = await QRCode.toDataURL(routeDataStr);
       return qrCodeDataUrl;
     } catch (error) {
       throw new Error('La génération du QR code a échoué');

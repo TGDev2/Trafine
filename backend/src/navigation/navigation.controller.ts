@@ -7,7 +7,7 @@ export class NavigationController {
 
   /**
    * Endpoint POST /navigation/calculate
-   * Permet de calculer un itinéraire entre un point de départ et une destination en tenant compte des incidents.
+   * Renvoie un ensemble d’itinéraires alternatifs.
    */
   @Post('calculate')
   async calculateRoute(
@@ -22,8 +22,7 @@ export class NavigationController {
 
   /**
    * Endpoint POST /navigation/share
-   * Permet de générer un QR code pour partager un itinéraire calculé.
-   * Le QR code contient les données de l'itinéraire au format JSON.
+   * Génère et renvoie un QR code représentant les itinéraires proposés.
    */
   @Post('share')
   async shareRoute(
