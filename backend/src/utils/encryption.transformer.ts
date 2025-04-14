@@ -1,11 +1,26 @@
 import * as crypto from 'crypto';
 
-const ENCRYPTION_KEY =
-  process.env.ENCRYPTION_KEY || 'default_key_32_characters_long!'; // Doit être une chaîne de 32 caractères
+// Vérification que la variable d'environnement ENCRYPTION_KEY est bien définie
+if (!process.env.ENCRYPTION_KEY) {
+  throw new Error('ENCRYPTION_KEY must be set in the environment variables.');
+}
+
+// Récupération de la clé de chiffrement depuis la variable d'environnement
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+
+// Validation de la clé : elle doit être exactement de 32 caractères pour AES-256-CBC
+if (ENCRYPTION_KEY.length !== 32) {
+  throw new Error('ENCRYPTION_KEY must be exactly 32 characters long.');
+}
+
 const IV_LENGTH = 16; // Taille de l’IV pour AES-256-CBC
 
 export const EncryptionTransformer = {
-  // Transformer "to" : chiffre la valeur avant de la sauvegarder dans la base
+  /**
+   * Transformer "to" : chiffre la valeur avant de la sauvegarder dans la base
+   * @param value La valeur à chiffrer
+   * @returns La valeur chiffrée ou null
+   */
   to: (value: string | null): string | null => {
     if (!value) return value;
     const iv = crypto.randomBytes(IV_LENGTH);
@@ -18,7 +33,12 @@ export const EncryptionTransformer = {
     encrypted += cipher.final('hex');
     return iv.toString('hex') + ':' + encrypted;
   },
-  // Transformer "from" : déchiffre la valeur lue depuis la base
+
+  /**
+   * Transformer "from" : déchiffre la valeur lue depuis la base
+   * @param value La valeur chiffrée
+   * @returns La valeur déchiffrée ou null
+   */
   from: (value: string | null): string | null => {
     if (!value) return value;
     const parts = value.split(':');
