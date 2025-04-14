@@ -27,16 +27,17 @@ export interface RouteCalculationStrategy {
 }
 
 /**
- * Implémentation de base d’une stratégie de calcul d’itinéraire.
+ * Implémentation améliorée d’une stratégie de calcul d’itinéraire.
+ * Utilise la formule de Haversine pour calculer la distance de base
+ * et applique une pénalité sur la distance et la durée pour chaque incident confirmé
+ * situé à proximité de la trajectoire directe.
  */
 @Injectable()
-export class BasicRouteCalculationStrategy implements RouteCalculationStrategy {
+export class RouteCalculationStrategy
+  implements RouteCalculationStrategy
+{
   constructor(private readonly incidentService: IncidentService) {}
 
-  /**
-   * Parse une chaîne de caractères de type "latitude, longitude" et retourne un objet de coordonnées.
-   * @param coordinateStr La chaîne de caractères contenant les coordonnées.
-   */
   private parseCoordinates(
     coordinateStr: string,
   ): { latitude: number; longitude: number } | null {
@@ -51,13 +52,6 @@ export class BasicRouteCalculationStrategy implements RouteCalculationStrategy {
     return null;
   }
 
-  /**
-   * Vérifie si une paire de coordonnées se situe dans les limites de la France métropolitaine.
-   * Pour simplifier, nous utilisons des bornes approximatives.
-   * Latitude entre 41.0 et 51.5 et longitude entre -5.0 et 10.0.
-   * @param latitude Latitude à vérifier.
-   * @param longitude Longitude à vérifier.
-   */
   private isWithinFrance(latitude: number, longitude: number): boolean {
     return (
       latitude >= 41.0 &&
@@ -67,22 +61,65 @@ export class BasicRouteCalculationStrategy implements RouteCalculationStrategy {
     );
   }
 
+  /**
+   * Calcule la distance en km entre deux points donnés en utilisant la formule de Haversine.
+   */
+  private haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const R = 6371; // rayon de la Terre en km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  /**
+   * Calcule une distance approximative (en km) entre un point (lat, lon) et la ligne droite définie par deux points (lat1, lon1) et (lat2, lon2).
+   * On effectue ici une approximation en considérant une conversion moyenne de 1° ≈ 111 km.
+   */
+  private pointToLineDistance(
+    lat: number,
+    lon: number,
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const A = { x: lon1, y: lat1 };
+    const B = { x: lon2, y: lat2 };
+    const P = { x: lon, y: lat };
+    const ABx = B.x - A.x;
+    const ABy = B.y - A.y;
+    const numerator = Math.abs(ABx * (A.y - P.y) - ABy * (A.x - P.x));
+    const denominator = Math.sqrt(ABx ** 2 + ABy ** 2);
+    // Conversion d'une différence en degrés en km (approximation)
+    return (numerator / denominator) * 111;
+  }
+
   async calculateRoute(
     source: string,
     destination: string,
     options?: { avoidTolls?: boolean },
   ): Promise<RouteResult> {
-    // Parse des coordonnées de départ et d'arrivée
+    // Extraction et validation des coordonnées
     const sourceCoords = this.parseCoordinates(source);
     const destCoords = this.parseCoordinates(destination);
 
     if (!sourceCoords || !destCoords) {
       throw new Error(
-        "Les coordonnées de départ et d'arrivée doivent être fournies sous le format 'latitude, longitude'.",
+        "Les coordonnées de départ et d'arrivée doivent être fournies au format 'latitude, longitude'.",
       );
     }
 
-    // Validation géographique : seules les coordonnées en France métropolitaine sont acceptées.
+    // Vérification géographique pour la France métropolitaine
     if (
       !this.isWithinFrance(sourceCoords.latitude, sourceCoords.longitude) ||
       !this.isWithinFrance(destCoords.latitude, destCoords.longitude)
@@ -92,41 +129,66 @@ export class BasicRouteCalculationStrategy implements RouteCalculationStrategy {
       );
     }
 
+    // Calcul de la distance de base et estimation de la durée
+    const baseDistance = this.haversineDistance(
+      sourceCoords.latitude,
+      sourceCoords.longitude,
+      destCoords.latitude,
+      destCoords.longitude,
+    );
+    // Hypothèse : vitesse moyenne d'environ 60 km/h (1 km/min)
+    const baseDuration = baseDistance;
+
+    // Récupération des incidents confirmés proches du point de départ
     const PROXIMITY_DELTA = 0.1;
-    // Utilise les coordonnées de départ pour la recherche des incidents à proximité
     const incidents = await this.incidentService.findIncidentsNear(
       sourceCoords.latitude,
       sourceCoords.longitude,
       PROXIMITY_DELTA,
     );
-
     const confirmedIncidents = incidents.filter(
       (incident) => incident.confirmed,
     );
-    const confirmedCount = confirmedIncidents.length;
 
-    const baseDistance = 10;
-    const baseDuration = 15;
-    const additionalDistance = confirmedCount * 2;
-    const additionalDuration = confirmedCount * 3;
+    // Comptage des incidents situés à proximité de la trajectoire directe
+    let incidentsOnRoute = 0;
+    const routeProximityThreshold = 5; // seuil en km
+    for (const incident of confirmedIncidents) {
+      const distanceToRoute = this.pointToLineDistance(
+        incident.latitude,
+        incident.longitude,
+        sourceCoords.latitude,
+        sourceCoords.longitude,
+        destCoords.latitude,
+        destCoords.longitude,
+      );
+      if (distanceToRoute <= routeProximityThreshold) {
+        incidentsOnRoute++;
+      }
+    }
 
-    let adjustedDistance = baseDistance + additionalDistance;
-    let adjustedDuration = baseDuration + additionalDuration;
+    // Application de pénalités en cas d'incidents proches
+    const penaltyDistance = incidentsOnRoute * 1.5; // km supplémentaires par incident
+    const penaltyDuration = incidentsOnRoute * 2; // minutes supplémentaires par incident
+
+    let adjustedDistance = baseDistance + penaltyDistance;
+    let adjustedDuration = baseDuration + penaltyDuration;
     let instructions: string[];
+    const recalculated = incidentsOnRoute > 0;
 
     if (options?.avoidTolls) {
-      adjustedDistance = Math.round(adjustedDistance * 1.2);
-      adjustedDuration = Math.round(adjustedDuration * 1.1);
+      adjustedDistance *= 1.15;
+      adjustedDuration *= 1.1;
       instructions = [
         `Départ de ${source}`,
         'Itinéraire optimisé pour éviter les péages',
         `Arrivée à ${destination}`,
       ];
     } else {
-      if (confirmedCount > 0) {
+      if (recalculated) {
         instructions = [
           `Départ de ${source}`,
-          `Trafic perturbé avec ${confirmedCount} incident(s) confirmé(s), itinéraire ajusté`,
+          `Trafic perturbé avec ${incidentsOnRoute} incident(s) proche(s) de la route, itinéraire ajusté`,
           `Arrivée à ${destination}`,
         ];
       } else {
@@ -141,11 +203,11 @@ export class BasicRouteCalculationStrategy implements RouteCalculationStrategy {
     return {
       source,
       destination,
-      distance: `${adjustedDistance} km`,
-      duration: `${adjustedDuration} minutes`,
+      distance: `${adjustedDistance.toFixed(2)} km`,
+      duration: `${adjustedDuration.toFixed(0)} minutes`,
       instructions,
       avoidTolls: options?.avoidTolls || false,
-      recalculated: confirmedCount > 0,
+      recalculated,
     };
   }
 }
