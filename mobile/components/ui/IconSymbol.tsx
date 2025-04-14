@@ -9,6 +9,7 @@ const MAPPING = {
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
   "exclamationmark.circle": "warning",
+  "qr-code": "qr-code",
 } as Partial<
   Record<
     import("expo-symbols").SymbolViewProps["name"],

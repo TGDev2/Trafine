@@ -75,6 +75,16 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Onglet modifié pour le scanner QR */}
+      <Tabs.Screen
+        name="scan-qr"
+        options={{
+          title: "Scanner",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="qrcode" color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
