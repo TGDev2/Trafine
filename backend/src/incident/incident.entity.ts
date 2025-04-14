@@ -20,12 +20,14 @@ export class Incident {
   @Column({ nullable: true })
   description!: string;
 
-  // Nouvelle colonne géospatiale pour stocker la localisation de l'incident
+  // Nouvelle colonne géospatiale pour stocker la localisation de l'incident.
+  // La valeur par défaut est définie pour les enregistrements existants afin d'éviter les valeurs nulles.
   @Column({
     type: 'geometry',
     spatialFeatureType: 'Point',
     srid: 4326,
     nullable: false,
+    default: () => "ST_SetSRID(ST_MakePoint(0, 0),4326)",
   })
   location!: { type: 'Point'; coordinates: number[] };
 
