@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { EncryptionTransformer } from '../utils/encryption.transformer';
 
 @Entity('users')
 export class User {
@@ -14,17 +15,19 @@ export class User {
   @Column({ unique: true })
   username!: string;
 
-  // Mot de passe haché (bcrypt). Pour les utilisateurs OAuth, une valeur dummy sera stockée.
+  // Mot de passe haché (bcrypt)
   @Column()
   password!: string;
 
-  @Column({ nullable: true })
+  // L'email est chiffré pour protéger la donnée sensible
+  @Column({ nullable: true, transformer: EncryptionTransformer })
   email?: string;
 
-  @Column({ nullable: true })
+  // Les informations OAuth sont également chiffrées
+  @Column({ nullable: true, transformer: EncryptionTransformer })
   oauthProvider?: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, transformer: EncryptionTransformer })
   oauthId?: string;
 
   // Exemple de champ pour stocker le rôle ou d’autres informations
