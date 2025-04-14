@@ -105,35 +105,44 @@ export class BasicRouteCalculationStrategy implements RouteCalculationStrategy {
     );
     const confirmedCount = confirmedIncidents.length;
 
-    const baseDistance = 10; // km de base
-    const baseDuration = 15; // minutes de base
+    const baseDistance = 10;
+    const baseDuration = 15;
+    const additionalDistance = confirmedCount * 2;
+    const additionalDuration = confirmedCount * 3;
 
-    const additionalDistance = confirmedCount * 2; // km ajoutés par incident confirmé
-    const additionalDuration = confirmedCount * 3; // minutes ajoutées par incident confirmé
-
-    const finalDistance = baseDistance + additionalDistance;
-    const finalDuration = baseDuration + additionalDuration;
-
+    let adjustedDistance = baseDistance + additionalDistance;
+    let adjustedDuration = baseDuration + additionalDuration;
     let instructions: string[];
-    if (confirmedCount > 0) {
+
+    if (options?.avoidTolls) {
+      adjustedDistance = Math.round(adjustedDistance * 1.2);
+      adjustedDuration = Math.round(adjustedDuration * 1.1);
       instructions = [
         `Départ de ${source}`,
-        `Trafic perturbé avec ${confirmedCount} incident(s) confirmé(s), itinéraire ajusté`,
+        'Itinéraire optimisé pour éviter les péages',
         `Arrivée à ${destination}`,
       ];
     } else {
-      instructions = [
-        `Départ de ${source}`,
-        'Suivre la route principale',
-        `Arrivée à ${destination}`,
-      ];
+      if (confirmedCount > 0) {
+        instructions = [
+          `Départ de ${source}`,
+          `Trafic perturbé avec ${confirmedCount} incident(s) confirmé(s), itinéraire ajusté`,
+          `Arrivée à ${destination}`,
+        ];
+      } else {
+        instructions = [
+          `Départ de ${source}`,
+          'Suivre la route principale',
+          `Arrivée à ${destination}`,
+        ];
+      }
     }
 
     return {
       source,
       destination,
-      distance: `${finalDistance} km`,
-      duration: `${finalDuration} minutes`,
+      distance: `${adjustedDistance} km`,
+      duration: `${adjustedDuration} minutes`,
       instructions,
       avoidTolls: options?.avoidTolls || false,
       recalculated: confirmedCount > 0,
