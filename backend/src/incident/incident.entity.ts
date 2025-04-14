@@ -20,12 +20,23 @@ export class Incident {
   @Column({ nullable: true })
   description!: string;
 
-  // Coordonnées géographiques
-  @Column({ type: 'float', nullable: true })
-  latitude!: number;
+  // Nouvelle colonne géospatiale pour stocker la localisation de l'incident
+  @Column({
+    type: 'geometry',
+    spatialFeatureType: 'Point',
+    srid: 4326,
+    nullable: false,
+  })
+  location!: { type: 'Point'; coordinates: number[] };
 
-  @Column({ type: 'float', nullable: true })
-  longitude!: number;
+  // Accesseurs pour obtenir la latitude et la longitude depuis la donnée géospatiale
+  get latitude(): number {
+    return this.location.coordinates[1];
+  }
+
+  get longitude(): number {
+    return this.location.coordinates[0];
+  }
 
   // Indique si l'incident a été validé ou infirmé, en fonction de l'agrégation des votes
   @Column({ default: false })

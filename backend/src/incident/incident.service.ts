@@ -23,9 +23,19 @@ export class IncidentService {
    * @returns L'incident créé.
    */
   async createIncident(data: CreateIncidentDto): Promise<Incident> {
-    const incident = this.incidentRepository.create(data);
+    // Construction de la donnée géospatiale en utilisant un type littéral "Point"
+    const incidentData = {
+      type: data.type,
+      description: data.description,
+      location: {
+        type: 'Point' as const,
+        coordinates: [data.longitude, data.latitude],
+      },
+    };
+
+    const incident = this.incidentRepository.create(incidentData);
     const savedIncident = await this.incidentRepository.save(incident);
-    // Diffusion de l'alerte dès la création de l'incident
+    // Diffuser l'alerte dès la création de l'incident
     this.alertsGateway.broadcastIncidentAlert(savedIncident);
     return savedIncident;
   }
@@ -39,10 +49,10 @@ export class IncidentService {
   }
 
   /**
-   * Récupère tous les incidents proches d'une position donnée.
+   * Récupère tous les incidents proches d'une position donnée en utilisant PostGIS.
    * @param latitude Latitude du centre.
    * @param longitude Longitude du centre.
-   * @param delta Valeur maximale de différence en degrés pour qualifier la proximité.
+   * @param delta Distance en degrés approximatifs (1° ≈ 111 km) pour convertir en mètres.
    * @returns Une liste d'incidents se trouvant dans le périmètre défini.
    */
   async findIncidentsNear(
@@ -50,16 +60,14 @@ export class IncidentService {
     longitude: number,
     delta: number,
   ): Promise<Incident[]> {
+    // Conversion du delta en mètres (approximativement, 1° ≈ 111000 m)
+    const distanceInMeters = delta * 111000;
     return await this.incidentRepository
       .createQueryBuilder('incident')
-      .where('ABS(incident.latitude - :latitude) <= :delta', {
-        latitude,
-        delta,
-      })
-      .andWhere('ABS(incident.longitude - :longitude) <= :delta', {
-        longitude,
-        delta,
-      })
+      .where(
+        'ST_DWithin(incident.location::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, :distance)',
+        { lat: latitude, lon: longitude, distance: distanceInMeters },
+      )
       .getMany();
   }
 
