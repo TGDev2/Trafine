@@ -4,12 +4,15 @@ import { Repository } from 'typeorm';
 import { Incident } from './incident.entity';
 import { AlertsGateway } from '../alerts/alerts.gateway';
 import { CreateIncidentDto } from './create-incident.dto';
+import { IncidentVote, VoteType } from './incident-vote.entity';
 
 @Injectable()
 export class IncidentService {
   constructor(
     @InjectRepository(Incident)
     private incidentRepository: Repository<Incident>,
+    @InjectRepository(IncidentVote)
+    private incidentVoteRepository: Repository<IncidentVote>,
     private alertsGateway: AlertsGateway,
   ) {}
 
@@ -32,7 +35,7 @@ export class IncidentService {
    * @returns Une liste d'incidents.
    */
   async getAllIncidents(): Promise<Incident[]> {
-    return await this.incidentRepository.find();
+    return await this.incidentRepository.find({ relations: ['votes'] });
   }
 
   /**
@@ -61,44 +64,86 @@ export class IncidentService {
   }
 
   /**
-   * Confirme un incident en mettant à jour son statut.
-   * @param id L'identifiant de l'incident.
-   * @returns L'incident mis à jour.
-   * @throws NotFoundException si l'incident n'existe pas.
+   * Enregistre le vote d'un utilisateur pour un incident et réévalue l'état de celui-ci.
+   * @param incidentId L'identifiant de l'incident.
+   * @param userId L'identifiant de l'utilisateur votant.
+   * @param vote Le type de vote (confirm ou deny).
    */
-  async confirmIncident(id: number): Promise<Incident> {
-    const incident = await this.incidentRepository.findOneBy({ id });
+  async voteOnIncident(
+    incidentId: number,
+    userId: number,
+    vote: VoteType,
+  ): Promise<Incident> {
+    const incident = await this.incidentRepository.findOne({
+      where: { id: incidentId },
+      relations: ['votes'],
+    });
     if (!incident) {
-      throw new NotFoundException(`Incident with id ${id} not found`);
+      throw new NotFoundException(`Incident with id ${incidentId} not found`);
     }
-    incident.confirmed = true;
-    incident.denied = false;
-    const updatedIncident = await this.incidentRepository.save(incident);
 
-    // Diffuser l'alerte de confirmation en temps réel
-    this.alertsGateway.broadcastIncidentAlert(updatedIncident);
+    // Vérifier si l'utilisateur a déjà voté
+    const existingVote = incident.votes.find((v) => v.userId === userId);
+    if (existingVote) {
+      if (existingVote.vote === vote) {
+        // Le vote est identique, aucun changement
+        return incident;
+      }
+      // Mettre à jour le vote existant
+      existingVote.vote = vote;
+      await this.incidentVoteRepository.save(existingVote);
+    } else {
+      // Créer un nouveau vote
+      const newVote = this.incidentVoteRepository.create({
+        incident,
+        userId,
+        vote,
+      });
+      await this.incidentVoteRepository.save(newVote);
+    }
 
-    return updatedIncident;
+    // Recharger les votes actualisés
+    const updatedIncident = await this.incidentRepository.findOne({
+      where: { id: incidentId },
+      relations: ['votes'],
+    });
+    if (!updatedIncident) {
+      throw new NotFoundException(
+        `Incident with id ${incidentId} not found after voting`,
+      );
+    }
+
+    // Agréger les votes
+    const confirmCount = updatedIncident.votes.filter(
+      (v) => v.vote === VoteType.CONFIRM,
+    ).length;
+    const denyCount = updatedIncident.votes.filter(
+      (v) => v.vote === VoteType.DENY,
+    ).length;
+
+    // Simple agrégation : l'incident est marqué comme confirmé si les votes positifs dépassent les votes négatifs, et inversement.
+    updatedIncident.confirmed = confirmCount > denyCount;
+    updatedIncident.denied = denyCount > confirmCount;
+
+    const savedIncident = await this.incidentRepository.save(updatedIncident);
+
+    // Diffuser l'alerte mise à jour
+    this.alertsGateway.broadcastIncidentAlert(savedIncident);
+
+    return savedIncident;
   }
 
   /**
-   * Infirme un incident en mettant à jour son statut.
-   * @param id L'identifiant de l'incident.
-   * @returns L'incident mis à jour.
-   * @throws NotFoundException si l'incident n'existe pas.
+   * Endpoint utilisé par le contrôleur pour confirmer un incident.
    */
-  async denyIncident(id: number): Promise<Incident> {
-    const incident = await this.incidentRepository.findOneBy({ id });
-    if (!incident) {
-      throw new NotFoundException(`Incident with id ${id} not found`);
-    }
-    incident.denied = true;
-    incident.confirmed = false;
-    const updatedIncident = await this.incidentRepository.save(incident);
+  async confirmIncident(incidentId: number, userId: number): Promise<Incident> {
+    return this.voteOnIncident(incidentId, userId, VoteType.CONFIRM);
+  }
 
-    // Diffuser l'alerte d'infirmation en temps réel pour synchroniser l'état sur tous les clients
-    this.alertsGateway.broadcastIncidentAlert(updatedIncident);
-
-    return updatedIncident;
+  /**
+   * Endpoint utilisé par le contrôleur pour infirmer un incident.
+   */
+  async denyIncident(incidentId: number, userId: number): Promise<Incident> {
+    return this.voteOnIncident(incidentId, userId, VoteType.DENY);
   }
 }

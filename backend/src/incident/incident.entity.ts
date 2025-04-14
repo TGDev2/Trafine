@@ -3,7 +3,9 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { IncidentVote } from './incident-vote.entity';
 
 @Entity()
 export class Incident {
@@ -25,15 +27,18 @@ export class Incident {
   @Column({ type: 'float', nullable: true })
   longitude!: number;
 
-  // Indique si l'incident a été confirmé par d'autres utilisateurs
+  // Indique si l'incident a été validé ou infirmé, en fonction de l'agrégation des votes
   @Column({ default: false })
   confirmed!: boolean;
 
-  // Indique si l'incident a été infirmé par d'autres utilisateurs
   @Column({ default: false })
   denied!: boolean;
 
   // Date de création de l'incident
   @CreateDateColumn()
   createdAt!: Date;
+
+  // Relation avec les votes de validation/infirmation
+  @OneToMany(() => IncidentVote, (vote) => vote.incident, { cascade: true })
+  votes!: IncidentVote[];
 }

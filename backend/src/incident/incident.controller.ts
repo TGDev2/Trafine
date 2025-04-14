@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { IncidentService } from './incident.service';
 import { Incident } from './incident.entity';
@@ -13,6 +14,15 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateIncidentDto } from './create-incident.dto';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { Request } from 'express';
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: number;
+    username: string;
+    // autres propriétés éventuellement ajoutées par le middleware JWT
+  };
+}
 
 @Controller('incidents')
 export class IncidentController {
@@ -41,25 +51,29 @@ export class IncidentController {
 
   /**
    * Endpoint PATCH /incidents/:id/confirm
-   * Confirme un incident en fonction de son identifiant.
-   * Seuls les utilisateurs authentifiés avec le rôle 'user' peuvent confirmer un incident.
+   * Permet à un utilisateur de confirmer un incident.
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('user')
   @Patch(':id/confirm')
-  async confirm(@Param('id') id: string): Promise<Incident> {
-    return this.incidentService.confirmIncident(Number(id));
+  async confirm(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Incident> {
+    return this.incidentService.confirmIncident(Number(id), req.user.id);
   }
 
   /**
    * Endpoint PATCH /incidents/:id/deny
-   * Infirme un incident en fonction de son identifiant.
-   * Seuls les utilisateurs authentifiés avec le rôle 'user' peuvent infirmer un incident.
+   * Permet à un utilisateur d'infirmer un incident.
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('user')
   @Patch(':id/deny')
-  async deny(@Param('id') id: string): Promise<Incident> {
-    return this.incidentService.denyIncident(Number(id));
+  async deny(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Incident> {
+    return this.incidentService.denyIncident(Number(id), req.user.id);
   }
 }
