@@ -33,10 +33,14 @@ export interface RouteCalculationStrategy {
 export class BasicRouteCalculationStrategy implements RouteCalculationStrategy {
   constructor(private readonly incidentService: IncidentService) {}
 
+  /**
+   * Parse une chaîne de caractères de type "latitude, longitude" et retourne un objet de coordonnées.
+   * @param coordinateStr La chaîne de caractères contenant les coordonnées.
+   */
   private parseCoordinates(
-    source: string,
+    coordinateStr: string,
   ): { latitude: number; longitude: number } | null {
-    const parts = source.split(',');
+    const parts = coordinateStr.split(',');
     if (parts.length === 2) {
       const lat = parseFloat(parts[0].trim());
       const lon = parseFloat(parts[1].trim());
@@ -47,24 +51,54 @@ export class BasicRouteCalculationStrategy implements RouteCalculationStrategy {
     return null;
   }
 
+  /**
+   * Vérifie si une paire de coordonnées se situe dans les limites de la France métropolitaine.
+   * Pour simplifier, nous utilisons des bornes approximatives.
+   * Latitude entre 41.0 et 51.5 et longitude entre -5.0 et 10.0.
+   * @param latitude Latitude à vérifier.
+   * @param longitude Longitude à vérifier.
+   */
+  private isWithinFrance(latitude: number, longitude: number): boolean {
+    return (
+      latitude >= 41.0 &&
+      latitude <= 51.5 &&
+      longitude >= -5.0 &&
+      longitude <= 10.0
+    );
+  }
+
   async calculateRoute(
     source: string,
     destination: string,
     options?: { avoidTolls?: boolean },
   ): Promise<RouteResult> {
-    const PROXIMITY_DELTA = 0.1;
-    let incidents: Incident[];
+    // Parse des coordonnées de départ et d'arrivée
+    const sourceCoords = this.parseCoordinates(source);
+    const destCoords = this.parseCoordinates(destination);
 
-    const coordinates = this.parseCoordinates(source);
-    if (coordinates) {
-      incidents = await this.incidentService.findIncidentsNear(
-        coordinates.latitude,
-        coordinates.longitude,
-        PROXIMITY_DELTA,
+    if (!sourceCoords || !destCoords) {
+      throw new Error(
+        "Les coordonnées de départ et d'arrivée doivent être fournies sous le format 'latitude, longitude'.",
       );
-    } else {
-      incidents = await this.incidentService.getAllIncidents();
     }
+
+    // Validation géographique : seules les coordonnées en France métropolitaine sont acceptées.
+    if (
+      !this.isWithinFrance(sourceCoords.latitude, sourceCoords.longitude) ||
+      !this.isWithinFrance(destCoords.latitude, destCoords.longitude)
+    ) {
+      throw new Error(
+        'Seuls les trajets en France métropolitaine sont supportés pour la bêta.',
+      );
+    }
+
+    const PROXIMITY_DELTA = 0.1;
+    // Utilise les coordonnées de départ pour la recherche des incidents à proximité
+    const incidents = await this.incidentService.findIncidentsNear(
+      sourceCoords.latitude,
+      sourceCoords.longitude,
+      PROXIMITY_DELTA,
+    );
 
     const confirmedIncidents = incidents.filter(
       (incident) => incident.confirmed,
