@@ -10,6 +10,7 @@ import {
   Switch,
 } from "react-native";
 import * as Location from "expo-location";
+import { io } from "socket.io-client";
 
 export default function CalculateRouteScreen() {
   const [currentLocation, setCurrentLocation] =
@@ -42,7 +43,7 @@ export default function CalculateRouteScreen() {
     setLoadingRoute(true);
     setError(null);
     try {
-      // Actualise la position de l'utilisateur à chaque appel
+      // Actualisation de la position de l'utilisateur
       const loc = await Location.getCurrentPositionAsync({});
       setCurrentLocation(loc.coords);
       const sourceString = `${loc.coords.latitude},${loc.coords.longitude}`;
@@ -72,21 +73,18 @@ export default function CalculateRouteScreen() {
     }
   }, [destination, avoidTolls]);
 
-  /**
-   * Mise en place d’un intervalle de recalcul automatique lorsque l’itinéraire est affiché.
-   */
+  // Remplacement de l'intervalle de polling par une écoute en temps réel via Socket.IO
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    if (route) {
-      // Recalcule l'itinéraire toutes les 30 secondes
-      intervalId = setInterval(() => {
-        handleCalculateRoute();
-      }, 30000);
-    }
+    if (!route) return; // On ne souscrit qu'une fois qu'un itinéraire est affiché
+    const socket = io("http://localhost:3000", { transports: ["websocket"] });
+    const onIncidentAlert = () => {
+      // Dès réception d'une alerte, déclenchement du recalcul de l'itinéraire
+      handleCalculateRoute();
+    };
+    socket.on("incidentAlert", onIncidentAlert);
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      socket.off("incidentAlert", onIncidentAlert);
+      socket.disconnect();
     };
   }, [route, handleCalculateRoute]);
 
@@ -145,7 +143,7 @@ export default function CalculateRouteScreen() {
           </Text>
           <Text style={styles.instructionsTitle}>Instructions :</Text>
           {route.instructions.map((instr: string, index: number) => (
-            <Text key={index}>{`\u2022 ${instr}`}</Text>
+            <Text key={index}>{instr}</Text>
           ))}
         </View>
       )}
