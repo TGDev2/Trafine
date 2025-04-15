@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ActivityIndicator, Alert, Text } from "react-native";
-import MapView, { Marker, Callout, Region } from "react-native-maps";
+import MapView, { Marker, Callout, Polyline, Region } from "react-native-maps";
 import io from "socket.io-client";
 import * as Location from "expo-location";
 
@@ -24,6 +24,9 @@ export default function NavigationScreen() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentLocation, setCurrentLocation] = useState<Region | null>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<
+    { latitude: number; longitude: number }[]
+  >([]);
 
   // Récupération initiale des incidents via REST
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function NavigationScreen() {
     };
   }, []);
 
-  // Implémentation de la géolocalisation en temps réel
+  // Mise en place de la géolocalisation en temps réel
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -101,6 +104,60 @@ export default function NavigationScreen() {
       };
     })();
   }, []);
+
+  // Récupération de l'itinéraire calculé lorsque la position actuelle est disponible
+  useEffect(() => {
+    const fetchRoute = async () => {
+      if (currentLocation) {
+        try {
+          // Pour la bêta, destination fixe : Lyon (coordonnées approximatives)
+          const destination = "45.7640,4.8357";
+          const sourceString = `${currentLocation.latitude},${currentLocation.longitude}`;
+          const response = await fetch(
+            "http://localhost:3000/navigation/calculate",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                source: sourceString,
+                destination,
+                avoidTolls: false,
+              }),
+            }
+          );
+          if (!response.ok) {
+            throw new Error("Erreur lors du calcul de l'itinéraire");
+          }
+          const data = await response.json();
+          if (
+            data.routes &&
+            data.routes.length > 0 &&
+            data.routes[0].geometry
+          ) {
+            // On suppose ici que la géométrie est au format GeoJSON LineString
+            const geoJson = data.routes[0].geometry;
+            if (
+              geoJson.type === "LineString" &&
+              Array.isArray(geoJson.coordinates)
+            ) {
+              // Transformer chaque paire [lon, lat] en { latitude, longitude }
+              const coords = geoJson.coordinates.map((coord: number[]) => ({
+                latitude: coord[1],
+                longitude: coord[0],
+              }));
+              setRouteCoordinates(coords);
+            }
+          }
+        } catch (error: any) {
+          Alert.alert("Erreur", error.message);
+        }
+      }
+    };
+
+    fetchRoute();
+  }, [currentLocation]);
 
   if (loading) {
     return (
@@ -147,6 +204,13 @@ export default function NavigationScreen() {
           }}
           title="Ma position"
           pinColor="blue"
+        />
+      )}
+      {routeCoordinates.length > 0 && (
+        <Polyline
+          coordinates={routeCoordinates}
+          strokeColor="blue"
+          strokeWidth={4}
         />
       )}
     </MapView>
