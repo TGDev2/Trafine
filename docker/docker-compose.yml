@@ -1,4 +1,17 @@
+version: '3'
 services:
+  osrm:
+    build:
+      context: ../osrm
+      dockerfile: Dockerfile
+    container_name: trafine-osrm
+    ports:
+      - "5000:5000"
+    volumes:
+      - osrm_data:/data
+    networks:
+      - trafine-net
+
   postgres:
     image: postgis/postgis:13-3.1-alpine
     container_name: trafine-postgres
@@ -8,6 +21,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - trafine-net
 
   backend:
     build:
@@ -20,6 +35,9 @@ services:
       - "3000:3000"
     depends_on:
       - postgres
+      - osrm
+    networks:
+      - trafine-net
 
   frontend:
     build:
@@ -30,6 +48,8 @@ services:
       - "3001:80"
     depends_on:
       - backend
+    networks:
+      - trafine-net
 
   mobile:
     build:
@@ -41,6 +61,13 @@ services:
       - "19002:19002"
     depends_on:
       - backend
+    networks:
+      - trafine-net
 
 volumes:
+  osrm_data:
   postgres_data:
+
+networks:
+  trafine-net:
+    driver: bridge
