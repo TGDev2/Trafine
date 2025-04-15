@@ -12,6 +12,7 @@ import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { useNavigation } from "expo-router";
+import * as Notifications from "expo-notifications";
 
 const INCIDENT_TYPES = [
   { label: "Accident", value: "accident" },
@@ -93,8 +94,16 @@ export default function ReportIncidentScreen() {
         );
       }
 
+      // Notification de succès via Expo Notifications
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Incident signalé",
+          body: "Votre incident a été enregistré avec succès.",
+        },
+        trigger: null,
+      });
+
       Alert.alert("Succès", "Incident signalé avec succès.");
-      // Navigation vers l’accueil ou remise à zéro du formulaire
       navigation.goBack();
     } catch (error: any) {
       Alert.alert("Erreur", error.message);

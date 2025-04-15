@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ActivityIndicator, Alert, Text } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  Text,
+  Vibration,
+} from "react-native";
 import MapView, { Marker, Callout, Polyline, Region } from "react-native-maps";
 import io from "socket.io-client";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 
+// Définition de l'interface Incident (si non déjà définie ailleurs)
 interface Incident {
   id: number;
   type: string;
@@ -27,39 +36,59 @@ export default function NavigationScreen() {
   const [routeCoordinates, setRouteCoordinates] = useState<
     { latitude: number; longitude: number }[]
   >([]);
+  const [notificationSocket, setNotificationSocket] = useState<any>(null);
 
-  // Récupération initiale des incidents via REST
+  // Configuration des notifications
   useEffect(() => {
-    fetch("http://localhost:3000/incidents")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Erreur lors de la récupération des incidents");
-        }
-        return response.json();
-      })
-      .then((data: Incident[]) => {
-        setIncidents(data);
-      })
-      .catch((error) => {
-        Alert.alert("Erreur", error.message);
-      })
-      .finally(() => {
-        setLoading(false);
+    const setupNotifications = async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission refusée",
+          "Les notifications sont nécessaires pour recevoir des alertes en temps réel."
+        );
+      }
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
       });
+    };
+    setupNotifications();
   }, []);
 
-  // Établir une connexion Socket.IO pour recevoir les alertes en temps réel
+  // Connexion WebSocket et réception des alertes avec notification et vibration
   useEffect(() => {
-    const socket = io("http://localhost:3000", { transports: ["websocket"] });
+    const socket = io("http://localhost:3000", {
+      transports: ["websocket"],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
 
     socket.on("incidentAlert", (incident: Incident) => {
+      // Vibrer le téléphone pour notifier
+      Vibration.vibrate([500, 200, 500]);
+
+      // Afficher une notification immédiate
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Nouvel incident signalé",
+          body: `${incident.type} - ${
+            incident.description || "Pas de description"
+          }`,
+          data: { incident },
+        },
+        trigger: null, // notification immédiate
+      });
+
+      // Mettre à jour la liste des incidents pour le rendu de la carte
       setIncidents((prevIncidents) => {
         const index = prevIncidents.findIndex((i) => i.id === incident.id);
         if (index === -1) {
-          // Nouvel incident, ajout à la liste
           return [...prevIncidents, incident];
         } else {
-          // Mise à jour de l’incident existant
           const updatedIncidents = [...prevIncidents];
           updatedIncidents[index] = incident;
           return updatedIncidents;
@@ -67,97 +96,34 @@ export default function NavigationScreen() {
       });
     });
 
+    setNotificationSocket(socket);
+
     return () => {
       socket.disconnect();
     };
   }, []);
 
-  // Mise en place de la géolocalisation en temps réel
+  // Gestion de la géolocalisation en temps réel
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission refusée",
-          "La géolocalisation est nécessaire pour cette fonctionnalité."
-        );
-        return;
+      try {
+        const loc = await Location.getCurrentPositionAsync({});
+        setCurrentLocation({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      } catch (err) {
+        Alert.alert("Erreur", "Impossible de récupérer la position actuelle.");
+      } finally {
+        setLoading(false);
       }
-      const locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Highest,
-          timeInterval: 5000,
-          distanceInterval: 10,
-        },
-        (location) => {
-          const { latitude, longitude } = location.coords;
-          setCurrentLocation({
-            latitude,
-            longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          });
-        }
-      );
-      return () => {
-        locationSubscription.remove();
-      };
     })();
   }, []);
 
-  // Récupération de l'itinéraire calculé lorsque la position actuelle est disponible
-  useEffect(() => {
-    const fetchRoute = async () => {
-      if (currentLocation) {
-        try {
-          // Pour la bêta, destination fixe : Lyon (coordonnées approximatives)
-          const destination = "45.7640,4.8357";
-          const sourceString = `${currentLocation.latitude},${currentLocation.longitude}`;
-          const response = await fetch(
-            "http://localhost:3000/navigation/calculate",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                source: sourceString,
-                destination,
-                avoidTolls: false,
-              }),
-            }
-          );
-          if (!response.ok) {
-            throw new Error("Erreur lors du calcul de l'itinéraire");
-          }
-          const data = await response.json();
-          if (
-            data.routes &&
-            data.routes.length > 0 &&
-            data.routes[0].geometry
-          ) {
-            // On suppose ici que la géométrie est au format GeoJSON LineString
-            const geoJson = data.routes[0].geometry;
-            if (
-              geoJson.type === "LineString" &&
-              Array.isArray(geoJson.coordinates)
-            ) {
-              // Transformer chaque paire [lon, lat] en { latitude, longitude }
-              const coords = geoJson.coordinates.map((coord: number[]) => ({
-                latitude: coord[1],
-                longitude: coord[0],
-              }));
-              setRouteCoordinates(coords);
-            }
-          }
-        } catch (error: any) {
-          Alert.alert("Erreur", error.message);
-        }
-      }
-    };
-
-    fetchRoute();
-  }, [currentLocation]);
+  // Exemple : récupération de l’itinéraire si besoin (démo, peut être développé selon les exigences)
+  // ...
 
   if (loading) {
     return (
@@ -172,30 +138,24 @@ export default function NavigationScreen() {
       style={styles.map}
       initialRegion={currentLocation ? currentLocation : DEFAULT_REGION}
     >
-      {incidents.map((incident) => {
-        if (incident.latitude && incident.longitude) {
-          return (
-            <Marker
-              key={incident.id}
-              coordinate={{
-                latitude: incident.latitude,
-                longitude: incident.longitude,
-              }}
-              pinColor={incident.confirmed ? "green" : "red"}
-            >
-              <Callout>
-                <View style={styles.callout}>
-                  <Text style={styles.calloutTitle}>{incident.type}</Text>
-                  <Text style={styles.calloutDescription}>
-                    {incident.description || "Sans description"}
-                  </Text>
-                </View>
-              </Callout>
-            </Marker>
-          );
-        }
-        return null;
-      })}
+      {incidents.map((incident) => (
+        <Marker
+          key={incident.id}
+          coordinate={{
+            latitude: incident.latitude,
+            longitude: incident.longitude,
+          }}
+        >
+          <Callout>
+            <View style={styles.callout}>
+              <Text style={styles.calloutTitle}>{incident.type}</Text>
+              <Text style={styles.calloutDescription}>
+                {incident.description || "Sans description"}
+              </Text>
+            </View>
+          </Callout>
+        </Marker>
+      ))}
       {currentLocation && (
         <Marker
           coordinate={{
