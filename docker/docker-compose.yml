@@ -11,6 +11,11 @@ services:
       - osrm_data:/data
     networks:
       - trafine-net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
 
   postgres:
     image: postgis/postgis:13-3.1-alpine
@@ -66,6 +71,11 @@ services:
 
 volumes:
   osrm_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/osrm
   postgres_data:
 
 networks:
