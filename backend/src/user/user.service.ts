@@ -17,7 +17,6 @@ export class UserService {
 
   /**
    * Recherche un utilisateur par son nom d’utilisateur.
-   * @param username
    */
   async findByUsername(username: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { username } });
@@ -25,8 +24,6 @@ export class UserService {
 
   /**
    * Création d'un nouvel utilisateur avec hachage du mot de passe.
-   * @param username
-   * @param plainPassword
    */
   async createUser(username: string, plainPassword: string): Promise<User> {
     const existing = await this.findByUsername(username);
@@ -43,8 +40,6 @@ export class UserService {
 
   /**
    * Vérifie le mot de passe fourni face au mot de passe haché de l’utilisateur.
-   * @param user
-   * @param plainPassword
    */
   async verifyPassword(user: User, plainPassword: string): Promise<boolean> {
     return bcrypt.compare(plainPassword, user.password);
@@ -69,12 +64,9 @@ export class UserService {
     if (user) {
       return user;
     }
-    // Utilise l'email comme username si disponible, sinon le displayName ou l'oauthId
     const username = email || displayName || oauthId;
-    // Créer un mot de passe dummy sécurisé
     const dummyPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(dummyPassword, 10);
-
     const newUser = this.userRepository.create({
       username,
       password: hashedPassword,
@@ -83,5 +75,24 @@ export class UserService {
       email,
     });
     return this.userRepository.save(newUser);
+  }
+
+  /**
+   * Récupère la liste de tous les utilisateurs.
+   */
+  async getAllUsers(): Promise<User[]> {
+    return this.userRepository.find();
+  }
+
+  /**
+   * Met à jour le rôle d’un utilisateur identifié par son id.
+   */
+  async updateUserRole(id: number, role: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found.`);
+    }
+    user.role = role;
+    return this.userRepository.save(user);
   }
 }
