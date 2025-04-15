@@ -10,6 +10,7 @@ export interface RouteResult {
   instructions: string[];
   avoidTolls: boolean;
   recalculated: boolean;
+  geometry?: any;
 }
 
 export interface RouteCalculationStrategy {
