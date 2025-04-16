@@ -1,3 +1,10 @@
+/**
+ * NavigationScreen
+ *
+ * Ce composant affiche la carte des incidents et gère les notifications en temps réel via WebSocket.
+ * La connexion est sécurisée en transmettant le token JWT récupéré depuis AsyncStorage.
+ */
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -9,10 +16,11 @@ import {
 } from "react-native";
 import MapView, { Marker, Callout, Polyline, Region } from "react-native-maps";
 import io from "socket.io-client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 
-// Définition de l'interface Incident (si non déjà définie ailleurs)
+// Définition de l'interface Incident
 interface Incident {
   id: number;
   type: string;
@@ -36,75 +44,45 @@ export default function NavigationScreen() {
   const [routeCoordinates, setRouteCoordinates] = useState<
     { latitude: number; longitude: number }[]
   >([]);
-  const [notificationSocket, setNotificationSocket] = useState<any>(null);
 
-  // Configuration des notifications
   useEffect(() => {
-    const setupNotifications = async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission refusée",
-          "Les notifications sont nécessaires pour recevoir des alertes en temps réel."
-        );
-      }
-      Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldPlaySound: true,
-          shouldSetBadge: true,
-        }),
+    // Fonction pour établir une connexion WebSocket sécurisée avec le token JWT
+    const connectSocket = async () => {
+      const token = await AsyncStorage.getItem("token");
+      const socket = io("http://localhost:3000", {
+        transports: ["websocket"],
+        auth: { token: `Bearer ${token}` },
+      });
+
+      socket.on("incidentAlert", (incident: Incident) => {
+        // Donner un retour haptique et afficher une notification immédiate
+        Vibration.vibrate([500, 200, 500]);
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: "Nouvel incident signalé",
+            body: `${incident.type} - ${
+              incident.description || "Pas de description"
+            }`,
+            data: { incident },
+          },
+          trigger: null, // Notification immédiate
+        });
+        setIncidents((prevIncidents) => {
+          const index = prevIncidents.findIndex((i) => i.id === incident.id);
+          if (index === -1) {
+            return [...prevIncidents, incident];
+          } else {
+            const updatedIncidents = [...prevIncidents];
+            updatedIncidents[index] = incident;
+            return updatedIncidents;
+          }
+        });
       });
     };
-    setupNotifications();
-  }, []);
 
-  // Connexion WebSocket et réception des alertes avec notification et vibration
-  useEffect(() => {
-    const socket = io("http://localhost:3000", {
-      transports: ["websocket"],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    connectSocket();
 
-    socket.on("incidentAlert", (incident: Incident) => {
-      // Vibrer le téléphone pour notifier
-      Vibration.vibrate([500, 200, 500]);
-
-      // Afficher une notification immédiate
-      Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Nouvel incident signalé",
-          body: `${incident.type} - ${
-            incident.description || "Pas de description"
-          }`,
-          data: { incident },
-        },
-        trigger: null, // notification immédiate
-      });
-
-      // Mettre à jour la liste des incidents pour le rendu de la carte
-      setIncidents((prevIncidents) => {
-        const index = prevIncidents.findIndex((i) => i.id === incident.id);
-        if (index === -1) {
-          return [...prevIncidents, incident];
-        } else {
-          const updatedIncidents = [...prevIncidents];
-          updatedIncidents[index] = incident;
-          return updatedIncidents;
-        }
-      });
-    });
-
-    setNotificationSocket(socket);
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
-  // Gestion de la géolocalisation en temps réel
-  useEffect(() => {
+    // Récupération de la localisation actuelle
     (async () => {
       try {
         const loc = await Location.getCurrentPositionAsync({});
@@ -121,9 +99,6 @@ export default function NavigationScreen() {
       }
     })();
   }, []);
-
-  // Exemple : récupération de l’itinéraire si besoin (démo, peut être développé selon les exigences)
-  // ...
 
   if (loading) {
     return (

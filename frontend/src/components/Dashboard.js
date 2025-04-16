@@ -1,3 +1,11 @@
+/**
+ * Dashboard Component
+ *
+ * Ce composant gère l'affichage du dashboard pour l'interface web Trafine.
+ * Il établit une connexion sécurisée à l'API via WebSocket en transmettant le token JWT,
+ * écoute les alertes d'incidents en temps réel et met à jour l'interface en conséquence.
+ */
+
 import React, { useEffect, useState } from "react";
 import MapView from "./MapView";
 import RouteCalculator from "./RouteCalculator";
@@ -9,83 +17,37 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Récupération du token JWT stocké localement (après authentification)
-  const token = localStorage.getItem("token");
-
-  // Fonction de mise à jour des incidents lors de la réception d'une alerte
-  const handleIncidentAlert = (incident) => {
-    setIncidents((prevIncidents) => {
-      const index = prevIncidents.findIndex((i) => i.id === incident.id);
-      if (index === -1) {
-        // Nouvel incident, on l'ajoute à la liste
-        return [...prevIncidents, incident];
-      } else {
-        // Incident existant, on met à jour ses informations
-        const updatedIncidents = [...prevIncidents];
-        updatedIncidents[index] = incident;
-        return updatedIncidents;
-      }
-    });
-  };
-
-  // Fonction pour confirmer un incident
-  const handleConfirm = async (id) => {
-    try {
-      const response = await fetch(
-        `http://localhost:3000/incidents/${id}/confirm`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error("Erreur lors de la confirmation de l'incident");
-      }
-      const updatedIncident = await response.json();
-      setIncidents((prevIncidents) =>
-        prevIncidents.map((incident) =>
-          incident.id === updatedIncident.id ? updatedIncident : incident
-        )
-      );
-    } catch (err) {
-      console.error(err);
-      setError(err.message);
-    }
-  };
-
-  // Fonction pour infirmer un incident
-  const handleDeny = async (id) => {
-    try {
-      const response = await fetch(
-        `http://localhost:3000/incidents/${id}/deny`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error("Erreur lors de l'infirmation de l'incident");
-      }
-      const updatedIncident = await response.json();
-      setIncidents((prevIncidents) =>
-        prevIncidents.map((incident) =>
-          incident.id === updatedIncident.id ? updatedIncident : incident
-        )
-      );
-    } catch (err) {
-      console.error(err);
-      setError(err.message);
-    }
-  };
-
+  // Établissement de la connexion WebSocket sécurisée
   useEffect(() => {
-    // Récupération initiale des incidents via REST
+    const token = localStorage.getItem("token");
+    const socket = io("http://localhost:3000", {
+      transports: ["websocket"],
+      auth: { token: `Bearer ${token}` },
+    });
+
+    socket.on("incidentAlert", (incident) => {
+      console.log("Alerte reçue pour l'incident :", incident);
+      setIncidents((prevIncidents) => {
+        const index = prevIncidents.findIndex((i) => i.id === incident.id);
+        if (index === -1) {
+          // Nouvel incident, on l'ajoute à la liste
+          return [...prevIncidents, incident];
+        } else {
+          // Incident existant, mise à jour des informations
+          const updatedIncidents = [...prevIncidents];
+          updatedIncidents[index] = incident;
+          return updatedIncidents;
+        }
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Récupération initiale des incidents et des statistiques via REST
+  useEffect(() => {
     fetch("http://localhost:3000/incidents")
       .then((response) => response.json())
       .then((data) => {
@@ -97,7 +59,7 @@ const Dashboard = () => {
         setLoading(false);
       });
 
-    // Récupération des statistiques de trafic avec gestion des erreurs
+    const token = localStorage.getItem("token");
     if (token) {
       fetch("http://localhost:3000/statistics", {
         headers: {
@@ -117,7 +79,6 @@ const Dashboard = () => {
             "Erreur lors de la récupération des statistiques:",
             err
           );
-          // Pour éviter une erreur lors du rendu, on définit une valeur par défaut
           setStatistics({
             totalIncidents: 0,
             confirmedIncidents: 0,
@@ -126,29 +87,13 @@ const Dashboard = () => {
           });
         });
     }
-
-    // Établir la connexion WebSocket avec le backend
-    const socket = io("http://localhost:3000", { transports: ["websocket"] });
-    socket.on("incidentAlert", (incident) => {
-      console.log("Alerte reçue pour l'incident :", incident);
-      handleIncidentAlert(incident);
-    });
-    return () => {
-      socket.disconnect();
-    };
-  }, [token]);
-
-  if (loading) {
-    return <div>Chargement...</div>;
-  }
+  }, []);
 
   return (
     <div>
       <h2>Interface de Gestion Trafine</h2>
       <RouteCalculator />
       {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
-
-      {/* Section Statistiques de Trafic */}
       {statistics && (
         <div>
           <h2>Statistiques de Trafic</h2>
@@ -176,7 +121,6 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-
       <h2>Carte des Incidents</h2>
       <MapView incidents={incidents} />
       <h2>Liste des Incidents</h2>
@@ -189,17 +133,6 @@ const Dashboard = () => {
               <strong>{incident.type}</strong> -{" "}
               {incident.description || "Sans description"} - Confirmé:{" "}
               {incident.confirmed ? "Oui" : "Non"}
-              <div style={{ marginTop: "5px" }}>
-                <button
-                  onClick={() => handleConfirm(incident.id)}
-                  style={{ marginRight: "5px" }}
-                >
-                  Confirmer
-                </button>
-                <button onClick={() => handleDeny(incident.id)}>
-                  Infirmer
-                </button>
-              </div>
             </li>
           ))}
         </ul>
