@@ -48,17 +48,20 @@ const Dashboard = () => {
 
   // Récupération initiale des incidents et des statistiques via REST
   useEffect(() => {
+    // Récupération des incidents
     fetch("http://localhost:3000/incidents")
       .then((response) => response.json())
       .then((data) => {
         setIncidents(data);
         setLoading(false);
       })
-      .catch((error) => {
-        console.error("Erreur lors de la récupération des incidents :", error);
+      .catch((err) => {
+        console.error("Erreur lors de la récupération des incidents :", err);
+        setError("Erreur lors de la récupération des incidents.");
         setLoading(false);
       });
 
+    // Récupération des statistiques
     const token = localStorage.getItem("token");
     if (token) {
       fetch("http://localhost:3000/statistics", {
@@ -79,6 +82,7 @@ const Dashboard = () => {
             "Erreur lors de la récupération des statistiques:",
             err
           );
+          setError("Erreur lors de la récupération des statistiques.");
           setStatistics({
             totalIncidents: 0,
             confirmedIncidents: 0,
@@ -89,11 +93,16 @@ const Dashboard = () => {
     }
   }, []);
 
+  // Affichage d'un indicateur de chargement si la récupération des données est en cours
+  if (loading) {
+    return <p>Chargement...</p>;
+  }
+
   return (
     <div>
       <h2>Interface de Gestion Trafine</h2>
-      <RouteCalculator />
       {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
+      <RouteCalculator />
       {statistics && (
         <div>
           <h2>Statistiques de Trafic</h2>
