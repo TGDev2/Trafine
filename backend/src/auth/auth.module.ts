@@ -32,6 +32,6 @@ import { UserModule } from '../user/user.module';
     FacebookStrategy,
   ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}
