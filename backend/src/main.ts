@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { SanitizationPipe } from './common/filters/sanitize.pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,6 +13,7 @@ async function bootstrap() {
   app.use(helmet());
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // Validation existante
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -19,6 +21,9 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // Pipe de sanitization
+  app.useGlobalPipes(new SanitizationPipe());
 
   const config = new DocumentBuilder()
     .setTitle('Trafine API')
