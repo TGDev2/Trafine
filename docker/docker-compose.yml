@@ -11,11 +11,14 @@ services:
       - osrm_data:/data
     networks:
       - trafine-net
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G
+    environment:
+      - OSRM_ALGORITHM=mld
+      - OSRM_MAX_TABLE_SIZE=10000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/route/v1/driving/2.3522,48.8566?steps=true"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   postgres:
     image: postgis/postgis:13-3.1-alpine

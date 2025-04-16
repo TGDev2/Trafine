@@ -1,34 +1,31 @@
-FROM osrm/osrm-backend:latest
+FROM osrm/osrm-backend:v5.25.0
 
-# Mettre à jour la configuration apt pour Debian Stretch via les dépôts archivés
-RUN echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/99no-check-valid-until && \
-    echo "deb http://archive.debian.org/debian stretch main" > /etc/apt/sources.list && \
-    echo "deb http://archive.debian.org/debian-security stretch/updates main" >> /etc/apt/sources.list
+# Configurer les dépôts archivés pour Debian Stretch
+RUN echo "deb http://archive.debian.org/debian stretch main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian-security stretch/updates main contrib non-free" >> /etc/apt/sources.list && \
+    echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/99no-check-valid-until && \
+    echo "Acquire::AllowInsecureRepositories true;" > /etc/apt/apt.conf.d/99allow-insecure
 
-# Installer les dépendances nécessaires
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget bzip2 && \
-    rm -rf /var/lib/apt/lists/*
+# Installer les dépendances avec autorisation des dépôts non sécurisés
+RUN apt-get update -o Acquire::AllowInsecureRepositories=true && \
+    apt-get install -y --no-install-recommends \
+    wget \
+    bzip2 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Téléchargement et vérification des données OSM pour la France avec désactivation de la vérification du certificat SSL
+# Télécharger les données OSM avec vérification
 RUN mkdir -p /data && \
-    wget --no-check-certificate -nv https://download.geofabrik.de/europe/france-latest.osm.pbf -O /data/france-latest.osm.pbf && \
-    wget --no-check-certificate -nv https://download.geofabrik.de/europe/france-latest.osm.pbf.md5 -O /data/france-latest.osm.pbf.md5 && \
+    wget -nv https://download.geofabrik.de/europe/france-latest.osm.pbf -O /data/france-latest.osm.pbf && \
+    wget -nv https://download.geofabrik.de/europe/france-latest.osm.pbf.md5 -O /data/france-latest.osm.pbf.md5 && \
     cd /data && md5sum -c france-latest.osm.pbf.md5
 
-# Copie du profil de routage personnalisé
 COPY car.lua /opt/car.lua
 
-# Extraction et préparation des données avec MLD
+# Build OSRM
 RUN osrm-extract -p /opt/car.lua /data/france-latest.osm.pbf && \
-    osrm-partition /data/france.osrm && \
-    osrm-customize /data/france.osrm
+    osrm-partition /data/france-latest.osrm && \
+    osrm-customize /data/france-latest.osrm
 
-# Configuration des performances pour OSRM
-ENV OSRM_THREADS=3
-ENV MLD=1
-
-# Exposition du port et point d'entrée du service
 EXPOSE 5000
-ENTRYPOINT ["osrm-routed"]
-CMD ["--algorithm", "mld", "--max-table-size", "8000", "/data/france.osrm"]
+CMD ["osrm-routed", "--algorithm", "mld", "/data/france-latest.osrm"]
