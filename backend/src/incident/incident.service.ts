@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Incident } from './incident.entity';
 import { AlertsGateway } from '../alerts/alerts.gateway';
 import { CreateIncidentDto } from './create-incident.dto';
 import { IncidentVote, VoteType } from './incident-vote.entity';
+import { Cron } from '@nestjs/schedule';
+
+const INCIDENT_VALIDITY_DURATION = 4 * 60 * 60 * 1000; // 4 heures en millisecondes
 
 @Injectable()
 export class IncidentService {
@@ -23,19 +30,20 @@ export class IncidentService {
    * @returns L'incident créé.
    */
   async createIncident(data: CreateIncidentDto): Promise<Incident> {
-    // Construction de la donnée géospatiale en utilisant un type littéral "Point"
-    const incidentData = {
+    const incidentData: Partial<Incident> = {
       type: data.type,
       description: data.description,
       location: {
-        type: 'Point' as const,
+        type: 'Point',
         coordinates: [data.longitude, data.latitude],
       },
+      status: 'active' as 'active',
+      expirationDate: new Date(Date.now() + INCIDENT_VALIDITY_DURATION),
+      lastConfirmationDate: new Date(),
     };
 
     const incident = this.incidentRepository.create(incidentData);
     const savedIncident = await this.incidentRepository.save(incident);
-    // Diffuser l'alerte dès la création de l'incident
     this.alertsGateway.broadcastIncidentAlert(savedIncident);
     return savedIncident;
   }
@@ -60,7 +68,6 @@ export class IncidentService {
     longitude: number,
     delta: number,
   ): Promise<Incident[]> {
-    // Conversion du delta en mètres (approximativement, 1° ≈ 111000 m)
     const distanceInMeters = delta * 111000;
     return await this.incidentRepository
       .createQueryBuilder('incident')
@@ -90,18 +97,14 @@ export class IncidentService {
       throw new NotFoundException(`Incident with id ${incidentId} not found`);
     }
 
-    // Vérifier si l'utilisateur a déjà voté
     const existingVote = incident.votes.find((v) => v.userId === userId);
     if (existingVote) {
       if (existingVote.vote === vote) {
-        // Le vote est identique, aucun changement
         return incident;
       }
-      // Mettre à jour le vote existant
       existingVote.vote = vote;
       await this.incidentVoteRepository.save(existingVote);
     } else {
-      // Créer un nouveau vote
       const newVote = this.incidentVoteRepository.create({
         incident,
         userId,
@@ -110,7 +113,6 @@ export class IncidentService {
       await this.incidentVoteRepository.save(newVote);
     }
 
-    // Recharger les votes actualisés
     const updatedIncident = await this.incidentRepository.findOne({
       where: { id: incidentId },
       relations: ['votes'],
@@ -121,7 +123,6 @@ export class IncidentService {
       );
     }
 
-    // Agréger les votes
     const confirmCount = updatedIncident.votes.filter(
       (v) => v.vote === VoteType.CONFIRM,
     ).length;
@@ -129,15 +130,19 @@ export class IncidentService {
       (v) => v.vote === VoteType.DENY,
     ).length;
 
-    // Simple agrégation : l'incident est marqué comme confirmé si les votes positifs dépassent les votes négatifs, et inversement.
     updatedIncident.confirmed = confirmCount > denyCount;
     updatedIncident.denied = denyCount > confirmCount;
 
+    // Si le vote est une confirmation, mettre à jour la date d'expiration et la dernière confirmation
+    if (vote === VoteType.CONFIRM) {
+      updatedIncident.expirationDate = new Date(
+        Date.now() + INCIDENT_VALIDITY_DURATION,
+      );
+      updatedIncident.lastConfirmationDate = new Date();
+    }
+
     const savedIncident = await this.incidentRepository.save(updatedIncident);
-
-    // Diffuser l'alerte mise à jour
     this.alertsGateway.broadcastIncidentAlert(savedIncident);
-
     return savedIncident;
   }
 
@@ -153,5 +158,17 @@ export class IncidentService {
    */
   async denyIncident(incidentId: number, userId: number): Promise<Incident> {
     return this.voteOnIncident(incidentId, userId, VoteType.DENY);
+  }
+
+  // Méthode de nettoyage des incidents expirés, exécutée toutes les 30 minutes
+  @Cron('0 */30 * * * *')
+  async cleanExpiredIncidents() {
+    await this.incidentRepository
+      .createQueryBuilder()
+      .update(Incident)
+      .set({ status: 'expired' as 'expired' })
+      .where('expirationDate < :threshold', { threshold: new Date() })
+      .andWhere("status = 'active'")
+      .execute();
   }
 }

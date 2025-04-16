@@ -20,14 +20,14 @@ export class Incident {
   @Column({ nullable: true })
   description!: string;
 
-  // Nouvelle colonne géospatiale pour stocker la localisation de l'incident.
+  // Colonne géospatiale pour stocker la localisation de l'incident.
   // La valeur par défaut est définie pour les enregistrements existants afin d'éviter les valeurs nulles.
   @Column({
     type: 'geometry',
     spatialFeatureType: 'Point',
     srid: 4326,
     nullable: false,
-    default: () => "ST_SetSRID(ST_MakePoint(0, 0),4326)",
+    default: () => 'ST_SetSRID(ST_MakePoint(0, 0),4326)',
   })
   location!: { type: 'Point'; coordinates: number[] };
 
@@ -54,4 +54,24 @@ export class Incident {
   // Relation avec les votes de validation/infirmation
   @OneToMany(() => IncidentVote, (vote) => vote.incident, { cascade: true })
   votes!: IncidentVote[];
+
+  // Nouveau champ pour le statut de l'incident (active, expired, archived)
+  @Column({ default: 'active' })
+  status!: 'active' | 'expired' | 'archived';
+
+  // Champ pour la date d'expiration de l'incident (si défini)
+  @Column({ type: 'timestamptz', nullable: true })
+  expirationDate!: Date | null;
+
+  // Champ pour la dernière date de confirmation de l'incident
+  @Column({ type: 'timestamptz', nullable: true })
+  lastConfirmationDate!: Date | null;
+
+  // Méthode utilitaire pour vérifier si l'incident est actif
+  isActive(): boolean {
+    return (
+      this.status === 'active' &&
+      (!this.expirationDate || this.expirationDate > new Date())
+    );
+  }
 }

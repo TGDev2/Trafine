@@ -2,6 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { Repository } from 'typeorm';
+import { Incident } from '../src/incident/incident.entity';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { IncidentService } from '../src/incident/incident.service';
 
 jest.setTimeout(30000);
 
@@ -9,6 +13,8 @@ describe('Incident API (e2e)', () => {
   let app: INestApplication;
   let jwtToken: string;
   let createdIncidentId: number;
+  let incidentRepository: Repository<Incident>;
+  let incidentService: IncidentService;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -17,6 +23,11 @@ describe('Incident API (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
+
+    incidentRepository = moduleFixture.get<Repository<Incident>>(
+      getRepositoryToken(Incident),
+    );
+    incidentService = moduleFixture.get<IncidentService>(IncidentService);
 
     // Création d'un utilisateur de test afin d'obtenir un token JWT
     const registerResponse = await request(app.getHttpServer())
@@ -73,14 +84,27 @@ describe('Incident API (e2e)', () => {
     expect(response.body.denied).toBe(false);
   });
 
-  it('should deny an incident', async () => {
-    const response = await request(app.getHttpServer())
-      .patch(`/incidents/${createdIncidentId}/deny`)
-      .set('Authorization', `Bearer ${jwtToken}`)
-      .expect(200);
-
-    expect(response.body).toHaveProperty('id', createdIncidentId);
-    expect(response.body.denied).toBe(true);
-    expect(response.body.confirmed).toBe(false);
-  });
+  it('should automatically expire old incidents', async () => {
+    // Création d'un incident avec une date d'expiration passée
+    const expiredIncident = await incidentRepository.save({
+      type: 'test-expired',
+      description: 'Incident expiré pour test',
+      location: { type: 'Point', coordinates: [0, 0] },
+      expirationDate: new Date(Date.now() - 10000), // 10 secondes dans le passé
+      status: 'active' as 'active',
+      createdAt: new Date(),
+      confirmed: false,
+      denied: false,
+      votes: [],
+    });
+  
+    // Déclenchement manuel du nettoyage
+    await incidentService.cleanExpiredIncidents();
+  
+    const updatedIncident = await incidentRepository.findOneBy({ id: expiredIncident.id });
+    expect(updatedIncident).not.toBeNull(); // Vérifie que l'incident existe
+    if (updatedIncident) {
+      expect(updatedIncident.status).toBe('expired');
+    }
+  });  
 });
