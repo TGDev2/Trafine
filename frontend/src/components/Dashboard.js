@@ -9,12 +9,12 @@ const Dashboard = () => {
   const [incidents, setIncidents] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [voteLoadingId, setVoteLoadingId] = useState(null);
   const [error, setError] = useState(null);
   const { token, logout } = useAuth();
 
-  // Handler pour la réception d'une alerte incident
+  /** -------------------- WebSocket -------------------- */
   const handleIncomingIncident = (incident) => {
-    console.log("Alerte reçue pour l'incident :", incident);
     setIncidents((prev) => {
       const idx = prev.findIndex((i) => i.id === incident.id);
       if (idx === -1) return [...prev, incident];
@@ -24,81 +24,86 @@ const Dashboard = () => {
     });
   };
 
-  // Effet WebSocket : (re)connecte à chaque changement de token
   useEffect(() => {
     const socket = io("http://localhost:3000", {
       transports: ["websocket"],
       auth: { token: token ? `Bearer ${token}` : "" },
     });
-
     socket.on("incidentAlert", handleIncomingIncident);
-
     return () => {
       socket.off("incidentAlert", handleIncomingIncident);
       socket.disconnect();
     };
   }, [token]);
 
-  // Effet REST initial : incidents + statistiques
+  /** -------------------- Initial fetch -------------------- */
   useEffect(() => {
     let isMounted = true;
 
-    // Récupère tous les incidents
-    apiFetch("http://localhost:3000/incidents", {}, { token, logout })
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchIncidents = async () => {
+      try {
+        const res = await apiFetch(
+          "http://localhost:3000/incidents",
+          {},
+          { token, logout }
+        );
         if (!isMounted) return;
-        setIncidents(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        console.error("Erreur récupération incidents :", err);
-        setError(err.message);
-        setLoading(false);
-      });
+        setIncidents(await res.json());
+      } catch (e) {
+        if (isMounted) setError(e.message);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
 
-    // Récupère les statistiques si authentifié
-    if (token) {
-      apiFetch(
-        "http://localhost:3000/statistics",
-        { headers: { "Content-Type": "application/json" } },
-        { token, logout }
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          if (isMounted) setStatistics(data);
-        })
-        .catch((err) => {
-          if (!isMounted) return;
-          console.error("Erreur récupération statistiques :", err);
-          setError(err.message);
-          setStatistics({
-            totalIncidents: 0,
-            confirmedIncidents: 0,
-            deniedIncidents: 0,
-            incidentsByType: {},
-          });
-        });
-    } else if (isMounted) {
-      setError("Utilisateur non authentifié.");
-      setLoading(false);
-    }
+    const fetchStats = async () => {
+      if (!token) return;
+      try {
+        const res = await apiFetch(
+          "http://localhost:3000/statistics",
+          {},
+          { token, logout }
+        );
+        if (isMounted) setStatistics(await res.json());
+      } catch (e) {
+        if (isMounted) setError(e.message);
+      }
+    };
 
+    fetchIncidents();
+    fetchStats();
     return () => {
       isMounted = false;
     };
   }, [token, logout]);
 
-  if (loading) {
-    return <p>Chargement…</p>;
-  }
+  /** -------------------- Vote helpers -------------------- */
+  const voteIncident = async (id, action) => {
+    setVoteLoadingId(id);
+    try {
+      const res = await apiFetch(
+        `http://localhost:3000/incidents/${id}/${action}`,
+        { method: "PATCH", headers: { "Content-Type": "application/json" } },
+        { token, logout }
+      );
+      const updated = await res.json();
+      setIncidents((prev) => prev.map((i) => (i.id === id ? updated : i)));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setVoteLoadingId(null);
+    }
+  };
+
+  if (loading) return <p>Chargement…</p>;
 
   return (
     <div>
       <h2>Interface de Gestion Trafine</h2>
       {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
+
       <RouteCalculator />
+
       {statistics && (
         <section>
           <h2>Statistiques de Trafic</h2>
@@ -126,18 +131,52 @@ const Dashboard = () => {
           </div>
         </section>
       )}
+
       <h2>Carte des Incidents</h2>
       <MapView incidents={incidents} />
+
       <h2>Liste des Incidents</h2>
       {incidents.length === 0 ? (
         <p>Aucun incident enregistré.</p>
       ) : (
-        <ul>
+        <ul style={{ listStyle: "none", padding: 0 }}>
           {incidents.map((incident) => (
-            <li key={incident.id} style={{ marginBottom: "10px" }}>
-              <strong>{incident.type}</strong> –{" "}
-              {incident.description || "Sans description"} – Confirmé :{" "}
-              {incident.confirmed ? "Oui" : "Non"}
+            <li
+              key={incident.id}
+              style={{
+                marginBottom: 10,
+                border: "1px solid #ddd",
+                padding: 10,
+                borderRadius: 4,
+              }}
+            >
+              <p style={{ margin: 0 }}>
+                <strong>{incident.type}</strong> —{" "}
+                {incident.description || "Sans description"}
+              </p>
+              <p style={{ margin: "4px 0" }}>
+                Confirmé : {incident.confirmed ? "Oui" : "Non"} | Infirmé :{" "}
+                {incident.denied ? "Oui" : "Non"}
+              </p>
+
+              {token && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => voteIncident(incident.id, "confirm")}
+                    disabled={
+                      voteLoadingId === incident.id || incident.confirmed
+                    }
+                  >
+                    {voteLoadingId === incident.id && "…"} Confirmer
+                  </button>
+                  <button
+                    onClick={() => voteIncident(incident.id, "deny")}
+                    disabled={voteLoadingId === incident.id || incident.denied}
+                  >
+                    {voteLoadingId === incident.id && "…"} Infirmer
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
