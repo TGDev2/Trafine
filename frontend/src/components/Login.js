@@ -1,10 +1,12 @@
 import React, { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
-const Login = ({ onLoginSuccess }) => {
+const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,8 +24,7 @@ const Login = ({ onLoginSuccess }) => {
         throw new Error("Erreur lors de l'authentification");
       }
       const { access_token } = await response.json();
-      // Transmet le token au parent pour qu’il le stocke et active l’état connecté
-      onLoginSuccess(access_token);
+      login(access_token);
     } catch (err) {
       setError(err.message);
     } finally {

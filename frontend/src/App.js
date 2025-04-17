@@ -1,19 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 import "./App.css";
+import { useAuth } from "./contexts/AuthContext";
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    const t = localStorage.getItem("token");
-    setIsAuthenticated(!!t);
-  }, []);
-  const handleLoginSuccess = (token) => {
-    localStorage.setItem("token", token);
-    setIsAuthenticated(true);
-  };
+  const { isAuthenticated, login } = useAuth();
 
   return (
     <div className="App">
@@ -21,11 +13,7 @@ function App() {
         <h1>Interface de Gestion Trafine</h1>
       </header>
       <main>
-        {isAuthenticated ? (
-          <Dashboard />
-        ) : (
-          <Login onLoginSuccess={handleLoginSuccess} />
-        )}
+        {isAuthenticated ? <Dashboard /> : <Login onLoginSuccess={login} />}
       </main>
     </div>
   );

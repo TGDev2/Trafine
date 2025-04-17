@@ -1,89 +1,78 @@
-/**
- * Dashboard Component
- *
- * Ce composant gère l'affichage du dashboard pour l'interface web Trafine.
- * Il établit une connexion sécurisée à l'API via WebSocket en transmettant le token JWT,
- * écoute les alertes d'incidents en temps réel et met à jour l'interface en conséquence.
- */
-
 import React, { useEffect, useState } from "react";
 import MapView from "./MapView";
 import RouteCalculator from "./RouteCalculator";
 import { io } from "socket.io-client";
+import { useAuth } from "../contexts/AuthContext";
+import { apiFetch } from "../utils/api";
 
 const Dashboard = () => {
   const [incidents, setIncidents] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { token, logout } = useAuth();
 
-  // Établissement de la connexion WebSocket sécurisée
+  // Handler pour la réception d'une alerte incident
+  const handleIncomingIncident = (incident) => {
+    console.log("Alerte reçue pour l'incident :", incident);
+    setIncidents((prev) => {
+      const idx = prev.findIndex((i) => i.id === incident.id);
+      if (idx === -1) return [...prev, incident];
+      const updated = [...prev];
+      updated[idx] = incident;
+      return updated;
+    });
+  };
+
+  // Effet WebSocket : (re)connecte à chaque changement de token
   useEffect(() => {
-    const token = localStorage.getItem("token");
     const socket = io("http://localhost:3000", {
       transports: ["websocket"],
-      auth: { token: `Bearer ${token}` },
+      auth: { token: token ? `Bearer ${token}` : "" },
     });
 
-    socket.on("incidentAlert", (incident) => {
-      console.log("Alerte reçue pour l'incident :", incident);
-      setIncidents((prevIncidents) => {
-        const index = prevIncidents.findIndex((i) => i.id === incident.id);
-        if (index === -1) {
-          // Nouvel incident, on l'ajoute à la liste
-          return [...prevIncidents, incident];
-        } else {
-          // Incident existant, mise à jour des informations
-          const updatedIncidents = [...prevIncidents];
-          updatedIncidents[index] = incident;
-          return updatedIncidents;
-        }
-      });
-    });
+    socket.on("incidentAlert", handleIncomingIncident);
 
     return () => {
+      socket.off("incidentAlert", handleIncomingIncident);
       socket.disconnect();
     };
-  }, []);
+  }, [token]);
 
-  // Récupération initiale des incidents et des statistiques via REST
+  // Effet REST initial : incidents + statistiques
   useEffect(() => {
-    // Récupération des incidents
-    fetch("http://localhost:3000/incidents")
-      .then((response) => response.json())
+    let isMounted = true;
+
+    // Récupère tous les incidents
+    apiFetch("http://localhost:3000/incidents", {}, { token, logout })
+      .then((res) => res.json())
       .then((data) => {
+        if (!isMounted) return;
         setIncidents(data);
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Erreur lors de la récupération des incidents :", err);
-        setError("Erreur lors de la récupération des incidents.");
+        if (!isMounted) return;
+        console.error("Erreur récupération incidents :", err);
+        setError(err.message);
         setLoading(false);
       });
 
-    // Récupération des statistiques (endpoint protégé ⚠️)
-    const token = localStorage.getItem("token");
+    // Récupère les statistiques si authentifié
     if (token) {
-      fetch("http://localhost:3000/statistics", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`Erreur ${res.status}: ${res.statusText}`);
-          }
-          return res.json();
+      apiFetch(
+        "http://localhost:3000/statistics",
+        { headers: { "Content-Type": "application/json" } },
+        { token, logout }
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted) setStatistics(data);
         })
-        .then((data) => setStatistics(data))
         .catch((err) => {
-          console.error(
-            "Erreur lors de la récupération des statistiques:",
-            err
-          );
-          setError("Erreur lors de la récupération des statistiques.");
+          if (!isMounted) return;
+          console.error("Erreur récupération statistiques :", err);
+          setError(err.message);
           setStatistics({
             totalIncidents: 0,
             confirmedIncidents: 0,
@@ -91,47 +80,51 @@ const Dashboard = () => {
             incidentsByType: {},
           });
         });
-    } else {
+    } else if (isMounted) {
       setError("Utilisateur non authentifié.");
+      setLoading(false);
     }
-  }, []);
 
-  // Affichage d'un indicateur de chargement si la récupération des données est en cours
+    return () => {
+      isMounted = false;
+    };
+  }, [token, logout]);
+
   if (loading) {
-    return <p>Chargement...</p>;
+    return <p>Chargement…</p>;
   }
 
   return (
     <div>
       <h2>Interface de Gestion Trafine</h2>
-      {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
+      {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
       <RouteCalculator />
       {statistics && (
-        <div>
+        <section>
           <h2>Statistiques de Trafic</h2>
           <p>
-            <strong>Total incidents :</strong> {statistics.totalIncidents}
+            <strong>Total incidents :</strong> {statistics.totalIncidents}
           </p>
           <p>
-            <strong>Incidents confirmés :</strong>{" "}
+            <strong>Incidents confirmés :</strong>{" "}
             {statistics.confirmedIncidents}
           </p>
           <p>
-            <strong>Incidents infirmés :</strong> {statistics.deniedIncidents}
+            <strong>Incidents infirmés :</strong> {statistics.deniedIncidents}
           </p>
           <div>
             <h3>Répartition par type</h3>
             <ul>
-              {Object.entries(statistics.incidentsByType || {}).map(
+              {Object.entries(statistics.incidentsByType).map(
                 ([type, count]) => (
                   <li key={type}>
-                    <strong>{type}</strong> : {count}
+                    <strong>{type}</strong> : {count}
                   </li>
                 )
               )}
             </ul>
           </div>
-        </div>
+        </section>
       )}
       <h2>Carte des Incidents</h2>
       <MapView incidents={incidents} />
@@ -142,8 +135,8 @@ const Dashboard = () => {
         <ul>
           {incidents.map((incident) => (
             <li key={incident.id} style={{ marginBottom: "10px" }}>
-              <strong>{incident.type}</strong> -{" "}
-              {incident.description || "Sans description"} - Confirmé:{" "}
+              <strong>{incident.type}</strong> –{" "}
+              {incident.description || "Sans description"} – Confirmé :{" "}
               {incident.confirmed ? "Oui" : "Non"}
             </li>
           ))}
