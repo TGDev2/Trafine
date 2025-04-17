@@ -1,5 +1,5 @@
-# Utilisons une image Node 18 en base
-FROM node:18
+# Utilisons une image Node 20 LTS (Web Crypto global disponible)
+FROM node:20
 
 # Créer un répertoire de travail
 WORKDIR /usr/src/app
