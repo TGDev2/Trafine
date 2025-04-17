@@ -9,6 +9,7 @@ import {
   Body,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { ConfigService } from '@nestjs/config';
 import { LocalAuthGuard } from './local-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request as ExpressRequest } from 'express';
@@ -24,7 +25,25 @@ interface AuthenticatedRequest extends ExpressRequest {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  /** ------------------------------------------------------------------
+   *  Utilitaire privé : sécurise et sélectionne l’URL de redirection
+   *  ------------------------------------------------------------------ */
+  private resolveRedirectUri(requested?: string): string {
+    const allowed = this.configService
+      .get<string>('ALLOWED_REDIRECT_URLS')!
+      .split(',')
+      .map((u) => u.trim());
+
+    if (requested && allowed.includes(requested)) {
+      return requested;
+    }
+    return allowed[0]; // fallback sécurisé
+  }
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -51,7 +70,12 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<any> {
     const token = await this.authService.login(req.user);
-    return res.redirect(`http://localhost:3001?token=${token.access_token}`);
+    const redirectUri = this.resolveRedirectUri(
+      (req.query.redirect_uri as string) || undefined,
+    );
+    return res.redirect(
+      `${redirectUri}?token=${encodeURIComponent(token.access_token)}`,
+    );
   }
 
   @Get('facebook')
@@ -67,6 +91,11 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<any> {
     const token = await this.authService.login(req.user);
-    return res.redirect(`http://localhost:3001?token=${token.access_token}`);
+    const redirectUri = this.resolveRedirectUri(
+      (req.query.redirect_uri as string) || undefined,
+    );
+    return res.redirect(
+      `${redirectUri}?token=${encodeURIComponent(token.access_token)}`,
+    );
   }
 }
