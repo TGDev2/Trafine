@@ -1,10 +1,3 @@
-/**
- * NavigationScreen
- *
- * Ce composant affiche la carte des incidents et gère les notifications en temps réel via WebSocket.
- * La connexion est sécurisée en transmettant le token JWT récupéré depuis AsyncStorage.
- */
-
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -13,8 +6,9 @@ import {
   Alert,
   Text,
   Vibration,
+  Button,
 } from "react-native";
-import MapView, { Marker, Callout, Polyline, Region } from "react-native-maps";
+import MapView, { Marker, Callout, Region } from "react-native-maps";
 import io from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
@@ -28,6 +22,7 @@ interface Incident {
   latitude: number;
   longitude: number;
   confirmed: boolean;
+  denied: boolean;
 }
 
 const DEFAULT_REGION: Region = {
@@ -41,12 +36,10 @@ export default function NavigationScreen() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentLocation, setCurrentLocation] = useState<Region | null>(null);
-  const [routeCoordinates, setRouteCoordinates] = useState<
-    { latitude: number; longitude: number }[]
-  >([]);
+  const [voteLoadingId, setVoteLoadingId] = useState<number | null>(null);
 
   useEffect(() => {
-    // Fonction pour établir une connexion WebSocket sécurisée avec le token JWT
+    // Connexion WebSocket sécurisée
     const connectSocket = async () => {
       const token = await AsyncStorage.getItem("token");
       const socket = io("http://localhost:3000", {
@@ -55,7 +48,7 @@ export default function NavigationScreen() {
       });
 
       socket.on("incidentAlert", (incident: Incident) => {
-        // Donner un retour haptique et afficher une notification immédiate
+        // Haptique + notification
         Vibration.vibrate([500, 200, 500]);
         Notifications.scheduleNotificationAsync({
           content: {
@@ -65,24 +58,21 @@ export default function NavigationScreen() {
             }`,
             data: { incident },
           },
-          trigger: null, // Notification immédiate
+          trigger: null,
         });
-        setIncidents((prevIncidents) => {
-          const index = prevIncidents.findIndex((i) => i.id === incident.id);
-          if (index === -1) {
-            return [...prevIncidents, incident];
-          } else {
-            const updatedIncidents = [...prevIncidents];
-            updatedIncidents[index] = incident;
-            return updatedIncidents;
-          }
+        setIncidents((prev) => {
+          const idx = prev.findIndex((i) => i.id === incident.id);
+          if (idx === -1) return [...prev, incident];
+          const copy = [...prev];
+          copy[idx] = incident;
+          return copy;
         });
       });
     };
 
     connectSocket();
 
-    // Récupération de la localisation actuelle
+    // Récupération de la position
     (async () => {
       try {
         const loc = await Location.getCurrentPositionAsync({});
@@ -92,13 +82,50 @@ export default function NavigationScreen() {
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         });
-      } catch (err) {
+      } catch {
         Alert.alert("Erreur", "Impossible de récupérer la position actuelle.");
       } finally {
         setLoading(false);
       }
     })();
   }, []);
+
+  // Helpers pour confirmer / infirmer
+  const confirmIncident = async (id: number) => {
+    setVoteLoadingId(id);
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/incidents/${id}/confirm`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Échec de la confirmation");
+      const updated = await res.json();
+      setIncidents((prev) => prev.map((i) => (i.id === id ? updated : i)));
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message);
+    } finally {
+      setVoteLoadingId(null);
+    }
+  };
+
+  const denyIncident = async (id: number) => {
+    setVoteLoadingId(id);
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/incidents/${id}/deny`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Échec de l'infirmation");
+      const updated = await res.json();
+      setIncidents((prev) => prev.map((i) => (i.id === id ? updated : i)));
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message);
+    } finally {
+      setVoteLoadingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -111,7 +138,7 @@ export default function NavigationScreen() {
   return (
     <MapView
       style={styles.map}
-      initialRegion={currentLocation ? currentLocation : DEFAULT_REGION}
+      initialRegion={currentLocation ?? DEFAULT_REGION}
     >
       {incidents.map((incident) => (
         <Marker
@@ -123,10 +150,26 @@ export default function NavigationScreen() {
         >
           <Callout>
             <View style={styles.callout}>
-              <Text style={styles.calloutTitle}>{incident.type}</Text>
-              <Text style={styles.calloutDescription}>
+              <Text style={styles.title}>{incident.type}</Text>
+              <Text style={styles.description}>
                 {incident.description || "Sans description"}
               </Text>
+              <Text style={styles.status}>
+                Confirmé : {incident.confirmed ? "Oui" : "Non"} | Infirmé :{" "}
+                {incident.denied ? "Oui" : "Non"}
+              </Text>
+              <View style={styles.buttonContainer}>
+                <Button
+                  title="Confirmer"
+                  onPress={() => confirmIncident(incident.id)}
+                  disabled={voteLoadingId === incident.id || incident.confirmed}
+                />
+                <Button
+                  title="Infirmer"
+                  onPress={() => denyIncident(incident.id)}
+                  disabled={voteLoadingId === incident.id || incident.denied}
+                />
+              </View>
             </View>
           </Callout>
         </Marker>
@@ -141,34 +184,20 @@ export default function NavigationScreen() {
           pinColor="blue"
         />
       )}
-      {routeCoordinates.length > 0 && (
-        <Polyline
-          coordinates={routeCoordinates}
-          strokeColor="blue"
-          strokeWidth={4}
-        />
-      )}
     </MapView>
   );
 }
 
 const styles = StyleSheet.create({
-  map: {
-    flex: 1,
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  callout: {
-    width: 200,
-  },
-  calloutTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  calloutDescription: {
-    fontSize: 14,
+  map: { flex: 1 },
+  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  callout: { width: 220 },
+  title: { fontSize: 16, fontWeight: "bold" },
+  description: { marginVertical: 4 },
+  status: { fontStyle: "italic", marginVertical: 4 },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 6,
   },
 });
