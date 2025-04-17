@@ -61,10 +61,11 @@ const Dashboard = () => {
         setLoading(false);
       });
 
-    // Récupération des statistiques
+    // Récupération des statistiques (endpoint protégé ⚠️)
     const token = localStorage.getItem("token");
     if (token) {
       fetch("http://localhost:3000/statistics", {
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -90,6 +91,8 @@ const Dashboard = () => {
             incidentsByType: {},
           });
         });
+    } else {
+      setError("Utilisateur non authentifié.");
     }
   }, []);
 

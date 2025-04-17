@@ -9,7 +9,11 @@ import { SanitizationPipe } from './common/filters/sanitize.pipe';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  app.enableCors({
+    origin: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
   app.use(helmet());
   app.useGlobalFilters(new AllExceptionsFilter());
 

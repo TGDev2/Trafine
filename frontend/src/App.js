@@ -7,8 +7,8 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    localStorage.removeItem("token");
-    setIsAuthenticated(false);
+    const t = localStorage.getItem("token");
+    setIsAuthenticated(!!t);
   }, []);
   const handleLoginSuccess = (token) => {
     localStorage.setItem("token", token);

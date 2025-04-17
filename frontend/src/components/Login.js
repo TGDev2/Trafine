@@ -21,10 +21,9 @@ const Login = ({ onLoginSuccess }) => {
       if (!response.ok) {
         throw new Error("Erreur lors de l'authentification");
       }
-      const data = await response.json();
-      // Stockage du token JWT dans le localStorage
-      localStorage.setItem("token", data.access_token);
-      onLoginSuccess();
+      const { access_token } = await response.json();
+      // Transmet le token au parent pour qu’il le stocke et active l’état connecté
+      onLoginSuccess(access_token);
     } catch (err) {
       setError(err.message);
     } finally {
