@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import RouteMap from "./RouteMap";
 
 function RouteCalculator() {
   const [source, setSource] = useState("");
@@ -33,7 +34,7 @@ function RouteCalculator() {
         throw new Error("Erreur lors du calcul de l'itinéraire");
       }
       const data = await response.json();
-      // data est censé ressembler à { routes: [ { distance, duration, instructions, ... }, ... ] }
+      // data est censé ressembler à { routes: [ { distance, duration, instructions, geometry, ... }, ... ] }
       setRoutes(data.routes || []);
     } catch (err) {
       setError(err.message);
@@ -124,6 +125,8 @@ function RouteCalculator() {
       {/* Affichage des différentes routes retournées */}
       {routes && routes.length > 0 && (
         <div style={{ marginTop: "15px" }}>
+          {/* Carte de l’itinéraire */}
+          <RouteMap routes={routes} />
           <h3>Itinéraire(s) calculé(s)</h3>
           {routes.map((rt, idx) => (
             <div
