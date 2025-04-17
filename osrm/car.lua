@@ -10,7 +10,7 @@ function way_function(way, result)
         return
     end
 
-    -- Gestion des péages
+    -- Détection des péages
     local toll = way:get_value_by_key("toll") == "yes" or toll_roads[highway]
 
     -- Vitesses adaptées à la réglementation française
@@ -28,12 +28,17 @@ function way_function(way, result)
     result.forward_speed = speeds[highway] or 50
     result.backward_speed = speeds[highway] or 50
 
-    -- Marquer les routes à péage
+    -- Marquer les routes à péage : pénalité + classe "toll"
     if toll then
         result.forward_mode = 1
         result.backward_mode = 1
-        result.forward_rate = 0.7 -- Pénalité pour routes à péage
+        result.forward_rate = 0.7 -- pénalité de coût
         result.backward_rate = 0.7
+
+        result.forward_classes = result.forward_classes or {}
+        result.backward_classes = result.backward_classes or {}
+        result.forward_classes["toll"] = true
+        result.backward_classes["toll"] = true
     end
 
     -- Gestion des sens interdits
