@@ -6,7 +6,9 @@ import {
   Body,
   Param,
   UseGuards,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { IncidentService } from './incident.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -31,44 +33,46 @@ export class IncidentController {
     };
   }
 
-  /** POST /incidents */
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(
-    @Body() createIncidentDto: CreateIncidentDto,
+    @Body() dto: CreateIncidentDto,
+    @Req() req: Request,
   ): Promise<IncidentResponseDto> {
-    const incident =
-      await this.incidentService.createIncident(createIncidentDto);
+    const incident = await this.incidentService.createIncident(dto);
     return this.toDto(incident);
   }
 
-  /** GET /incidents */
   @Get()
   async findAll(): Promise<IncidentResponseDto[]> {
     const incidents = await this.incidentService.getAllIncidents();
-    return incidents.map((inc) => this.toDto(inc));
+    return incidents.map((i) => this.toDto(i));
   }
 
-  /** PATCH /incidents/:id/confirm */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('user')
   @Patch(':id/confirm')
-  async confirm(@Param('id') id: string): Promise<IncidentResponseDto> {
+  async confirm(
+    @Param('id') id: string,
+    @Req() req: Request & { user: { userId: number } },
+  ): Promise<IncidentResponseDto> {
     const incident = await this.incidentService.confirmIncident(
       Number(id),
-      /* userId inutile ici */ 0,
+      req.user.userId,
     );
     return this.toDto(incident);
   }
 
-  /** PATCH /incidents/:id/deny */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('user')
   @Patch(':id/deny')
-  async deny(@Param('id') id: string): Promise<IncidentResponseDto> {
+  async deny(
+    @Param('id') id: string,
+    @Req() req: Request & { user: { userId: number } },
+  ): Promise<IncidentResponseDto> {
     const incident = await this.incidentService.denyIncident(
       Number(id),
-      /* userId inutile ici */ 0,
+      req.user.userId,
     );
     return this.toDto(incident);
   }

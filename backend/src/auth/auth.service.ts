@@ -7,16 +7,10 @@ import { RegisterUserDto } from './auth.dto';
 @Injectable()
 export class AuthService {
   constructor(
-    private jwtService: JwtService,
-    private userService: UserService,
+    private readonly jwtService: JwtService,
+    private readonly userService: UserService,
   ) {}
 
-  /**
-   * Valide un utilisateur par son username et son mot de passe.
-   * @param username Le nom d'utilisateur.
-   * @param password Le mot de passe en clair.
-   * @returns L'utilisateur validé (sans le mot de passe) ou lève une exception.
-   */
   async validateUser(
     username: string,
     password: string,
@@ -41,23 +35,21 @@ export class AuthService {
   }
 
   /**
-   * Génère un token JWT pour l'utilisateur authentifié.
-   * @param user L'utilisateur authentifié.
-   * @returns Un objet contenant l'access_token.
+   * Génère un token JWT incluant id, username et rôle.
    */
-  login(user: { username: string; id: number }): { access_token: string } {
-    const payload = { username: user.username, sub: user.id };
+  login(user: Pick<User, 'id' | 'username' | 'role'>): {
+    access_token: string;
+  } {
+    const payload = {
+      sub: user.id,
+      username: user.username,
+      role: user.role,
+    };
     return {
       access_token: this.jwtService.sign(payload),
     };
   }
 
-  /**
-   * Crée un nouvel utilisateur (username + password),
-   * en vérifiant que le nom d’utilisateur n’existe pas déjà.
-   * @param registerUserDto Les informations d'inscription.
-   * @returns Un objet contenant l'access_token pour l’utilisateur créé.
-   */
   async register(
     registerUserDto: RegisterUserDto,
   ): Promise<{ access_token: string }> {
@@ -65,16 +57,14 @@ export class AuthService {
       registerUserDto.username,
       registerUserDto.password,
     );
-    return this.login({ username: newUser.username, id: newUser.id });
+    // On inclut désormais newUser.role (par défaut 'user')
+    return this.login({
+      username: newUser.username,
+      id: newUser.id,
+      role: newUser.role,
+    });
   }
 
-  /**
-   * Valide un utilisateur OAuth.
-   * Si l'utilisateur n'existe pas, il est créé.
-   * @param provider Le fournisseur OAuth (google, facebook, etc.)
-   * @param profile Le profil reçu du fournisseur OAuth.
-   * @returns L'objet utilisateur normalisé (sans le mot de passe).
-   */
   async validateOAuthLogin(
     provider: string,
     profile: any,

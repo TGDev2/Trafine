@@ -16,8 +16,9 @@ import { RegisterUserDto } from './auth.dto';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: {
-    username: string;
     id: number;
+    username: string;
+    role: string;
   };
 }
 
@@ -27,7 +28,8 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req: AuthenticatedRequest) {
+  async login(@Req() req: AuthenticatedRequest) {
+    // req.user contient désormais id, username ET role
     return this.authService.login(req.user);
   }
 
@@ -39,7 +41,7 @@ export class AuthController {
   @Get('google')
   @UseGuards(AuthGuard('google'))
   async googleAuth(): Promise<void> {
-    // Point de redirection vers Google
+    // Redirection vers Google
   }
 
   @Get('google/callback')
@@ -48,15 +50,14 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
   ): Promise<any> {
-    const user = req.user;
-    const token = await this.authService.login(user);
+    const token = await this.authService.login(req.user);
     return res.redirect(`http://localhost:3001?token=${token.access_token}`);
   }
 
   @Get('facebook')
   @UseGuards(AuthGuard('facebook'))
   async facebookAuth(): Promise<void> {
-    // Point de redirection vers Facebook
+    // Redirection vers Facebook
   }
 
   @Get('facebook/callback')
@@ -65,8 +66,7 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
   ): Promise<any> {
-    const user = req.user;
-    const token = await this.authService.login(user);
+    const token = await this.authService.login(req.user);
     return res.redirect(`http://localhost:3001?token=${token.access_token}`);
   }
 }
