@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import MapView from "./MapView";
 import RouteCalculator from "./RouteCalculator";
 import { io } from "socket.io-client";
@@ -12,6 +12,7 @@ const Dashboard = () => {
   const [voteLoadingId, setVoteLoadingId] = useState(null);
   const [error, setError] = useState(null);
   const { token, logout } = useAuth();
+  const socketRef = useRef(null);
 
   /** -------------------- WebSocket -------------------- */
   const handleIncomingIncident = (incident) => {
@@ -29,6 +30,7 @@ const Dashboard = () => {
       transports: ["websocket"],
       auth: { token: token ? `Bearer ${token}` : "" },
     });
+    socketRef.current = socket;
     socket.on("incidentAlert", handleIncomingIncident);
     return () => {
       socket.off("incidentAlert", handleIncomingIncident);
@@ -103,6 +105,7 @@ const Dashboard = () => {
       {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
 
       <RouteCalculator />
+      <RouteCalculator socket={socketRef.current} />
 
       {statistics && (
         <section>

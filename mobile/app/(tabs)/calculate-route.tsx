@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Switch,
 } from "react-native";
 import * as Location from "expo-location";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 
 export default function CalculateRouteScreen() {
   const [currentLocation, setCurrentLocation] =
@@ -20,6 +20,7 @@ export default function CalculateRouteScreen() {
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [route, setRoute] = useState<any>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Récupération initiale de la position actuelle
@@ -34,6 +35,9 @@ export default function CalculateRouteScreen() {
         setLoadingLocation(false);
       }
     })();
+    socketRef.current = io("http://localhost:3000", {
+      transports: ["websocket"],
+    });
   }, []);
 
   /**
@@ -66,6 +70,15 @@ export default function CalculateRouteScreen() {
       }
       const data = await response.json();
       setRoute(data);
+      if (socketRef.current && data.routes?.length > 0) {
+        const geo = data.routes[0].geometry;
+        if (geo?.type === "LineString") {
+          socketRef.current.emit("subscribeRoute", {
+            geometry: { type: "Feature", geometry: geo, properties: {} },
+            threshold: 1000,
+          });
+        }
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {

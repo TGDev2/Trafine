@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import RouteMap from "./RouteMap";
 
-function RouteCalculator() {
+/**
+ * @param {{socket?: import("socket.io-client").Socket}} props
+ */
+function RouteCalculator({ socket }) {
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
   const [avoidTolls, setAvoidTolls] = useState(false);
@@ -34,8 +37,20 @@ function RouteCalculator() {
         throw new Error("Erreur lors du calcul de l'itinéraire");
       }
       const data = await response.json();
-      // data est censé ressembler à { routes: [ { distance, duration, instructions, geometry, ... }, ... ] }
-      setRoutes(data.routes || []);
+      const calculatedRoutes = data.routes || [];
+      setRoutes(calculatedRoutes);
+
+      if (socket && calculatedRoutes.length > 0) {
+        const firstGeometry = calculatedRoutes[0].geometry;
+        if (firstGeometry?.type === "LineString") {
+          const feature = {
+            type: "Feature",
+            geometry: firstGeometry,
+            properties: {},
+          };
+          socket.emit("subscribeRoute", { geometry: feature, threshold: 1000 });
+        }
+      }
     } catch (err) {
       setError(err.message);
     } finally {
