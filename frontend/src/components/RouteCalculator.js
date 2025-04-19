@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import RouteMap from "./RouteMap";
+import { geocode } from "../utils/geocode";
 
 /**
  * @param {{socket?: import("socket.io-client").Socket}} props
@@ -23,6 +24,19 @@ function RouteCalculator({ socket }) {
     setQrCode(null);
 
     try {
+      /* ---------------------------------------------------------------
+       * 1. Déterminer si l’utilisateur a déjà entré des coordonnées.
+       *    Sinon, appel Nominatim pour obtenir "lat, lon"
+       * ------------------------------------------------------------- */
+      const coordRegex = /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/; // 48.85, 2.35
+
+      const sourceCoords = coordRegex.test(source)
+        ? source
+        : await geocode(source);
+      const destCoords = coordRegex.test(destination)
+        ? destination
+        : await geocode(destination);
+
       const response = await fetch(
         "http://localhost:3000/navigation/calculate",
         {
@@ -30,7 +44,11 @@ function RouteCalculator({ socket }) {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ source, destination, avoidTolls }),
+          body: JSON.stringify({
+            source: sourceCoords,
+            destination: destCoords,
+            avoidTolls,
+          }),
         }
       );
       if (!response.ok) {
@@ -106,7 +124,7 @@ function RouteCalculator({ socket }) {
             value={source}
             onChange={(e) => setSource(e.target.value)}
             required
-            placeholder="Ex : 48.8566, 2.3522"
+            placeholder="Ex : Paris ou 48.8566, 2.3522"
           />
         </div>
         <div style={{ marginBottom: "10px" }}>
@@ -116,7 +134,7 @@ function RouteCalculator({ socket }) {
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
             required
-            placeholder="Ex : 45.7640, 4.8357"
+            placeholder="Ex : Lyon ou 45.7640, 4.8357"
           />
         </div>
         <div style={{ marginBottom: "10px" }}>

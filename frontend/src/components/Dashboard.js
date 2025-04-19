@@ -104,7 +104,6 @@ const Dashboard = () => {
       <h2>Interface de Gestion Trafine</h2>
       {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
 
-      <RouteCalculator />
       <RouteCalculator socket={socketRef.current} />
 
       {statistics && (
