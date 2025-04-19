@@ -7,6 +7,8 @@ import {
   Param,
   UseGuards,
   Req,
+  Query,
+  ParseEnumPipe,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { IncidentService } from './incident.service';
@@ -16,6 +18,8 @@ import { RolesGuard } from '../auth/roles.guard';
 import { CreateIncidentDto } from './create-incident.dto';
 import { IncidentResponseDto } from './dto/incident-response.dto';
 import { Incident } from './incident.entity';
+
+type IncidentStatus = 'active' | 'expired' | 'archived' | 'all';
 
 @Controller('incidents')
 export class IncidentController {
@@ -44,8 +48,16 @@ export class IncidentController {
   }
 
   @Get()
-  async findAll(): Promise<IncidentResponseDto[]> {
-    const incidents = await this.incidentService.getAllIncidents();
+  async findAll(
+    @Query(
+      'status',
+      new ParseEnumPipe(['active', 'expired', 'archived', 'all'], {
+        optional: true,
+      }),
+    )
+    status: IncidentStatus = 'active',
+  ): Promise<IncidentResponseDto[]> {
+    const incidents = await this.incidentService.getAllIncidents(status);
     return incidents.map((i) => this.toDto(i));
   }
 

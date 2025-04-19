@@ -11,7 +11,9 @@ import { CreateIncidentDto } from './create-incident.dto';
 import { IncidentVote, VoteType } from './incident-vote.entity';
 import { Cron } from '@nestjs/schedule';
 
-const INCIDENT_VALIDITY_DURATION = 4 * 60 * 60 * 1000; // 4 heures en millisecondes
+const INCIDENT_VALIDITY_DURATION = 4 * 60 * 60 * 1000; // 4 h en ms
+
+type IncidentStatus = 'active' | 'expired' | 'archived' | 'all';
 
 @Injectable()
 export class IncidentService {
@@ -52,8 +54,17 @@ export class IncidentService {
    * Récupère tous les incidents enregistrés.
    * @returns Une liste d'incidents.
    */
-  async getAllIncidents(): Promise<Incident[]> {
-    return await this.incidentRepository.find({ relations: ['votes'] });
+  async getAllIncidents(
+    status: IncidentStatus = 'active',
+  ): Promise<Incident[]> {
+    const qb = this.incidentRepository
+      .createQueryBuilder('incident')
+      .leftJoinAndSelect('incident.votes', 'vote');
+
+    if (status !== 'all') {
+      qb.where('incident.status = :status', { status });
+    }
+    return qb.getMany();
   }
 
   /**
@@ -68,13 +79,17 @@ export class IncidentService {
     longitude: number,
     delta: number,
   ): Promise<Incident[]> {
-    const distanceInMeters = delta * 111000;
-    return await this.incidentRepository
+    const distanceInMeters = delta * 111_000;
+    return this.incidentRepository
       .createQueryBuilder('incident')
       .where(
-        'ST_DWithin(incident.location::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, :distance)',
+        'ST_DWithin(incident.location::geography,' +
+          ' ST_SetSRID(ST_MakePoint(:lon, :lat),4326)::geography,' +
+          ' :distance)',
         { lat: latitude, lon: longitude, distance: distanceInMeters },
       )
+      .andWhere('incident.status = :status', { status: 'active' })
+      .andWhere('incident.confirmed = true') // évite les incidents non validés
       .getMany();
   }
 
