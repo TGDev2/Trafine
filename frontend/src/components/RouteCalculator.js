@@ -25,7 +25,7 @@ function RouteCalculator({ socket }) {
 
     try {
       /* ---------------------------------------------------------------
-       * 1. Déterminer si l’utilisateur a déjà entré des coordonnées.
+       *    Déterminer si l’utilisateur a déjà entré des coordonnées.
        *    Sinon, appel Nominatim pour obtenir "lat, lon"
        * ------------------------------------------------------------- */
       const coordRegex = /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/; // 48.85, 2.35

@@ -10,10 +10,13 @@ export class OsrmRouteCalculationStrategy implements RouteCalculationStrategy {
   private readonly osrmBaseUrl: string;
 
   constructor() {
-    // URL OSRM configurable (docker-compose → http://osrm:5000)
+    // URL OSRM configurable (docker‑compose → http://osrm:5000)
     this.osrmBaseUrl = process.env.OSRM_BASE_URL || 'http://localhost:5000';
   }
 
+  /** -------------------------------------------------------------------
+   *  Utils
+   *  ------------------------------------------------------------------*/
   private parseCoordinates(
     coordinateStr: string,
   ): { latitude: number; longitude: number } | null {
@@ -28,36 +31,61 @@ export class OsrmRouteCalculationStrategy implements RouteCalculationStrategy {
     return null;
   }
 
+  /**
+   * Aligne un point sur le segment routier carrossable le plus proche.
+   * Si l’endpoint /nearest répond correctement, on renvoie le point corrigé.
+   * En cas d’erreur, on renvoie le point d’origine pour ne pas bloquer l’itinéraire.
+   */
+  private async snapToRoad(
+    latitude: number,
+    longitude: number,
+  ): Promise<{ latitude: number; longitude: number }> {
+    const url = `${this.osrmBaseUrl}/nearest/v1/driving/${longitude},${latitude}?number=1`;
+    try {
+      const { data } = await axios.get(url);
+      if (data.code === 'Ok' && data.waypoints?.length) {
+        const [snappedLon, snappedLat] = data.waypoints[0].location;
+        return { latitude: snappedLat, longitude: snappedLon };
+      }
+    } catch {
+    }
+    return { latitude, longitude };
+  }
+
+  /** -------------------------------------------------------------------
+   *  Méthode principale
+   *  ------------------------------------------------------------------*/
   async calculateRoute(
     source: string,
     destination: string,
     options?: { avoidTolls?: boolean },
   ): Promise<{ routes: RouteResult[] }> {
-    const sourceCoords = this.parseCoordinates(source);
-    const destCoords = this.parseCoordinates(destination);
-    if (!sourceCoords || !destCoords) {
+    const src = this.parseCoordinates(source);
+    const dst = this.parseCoordinates(destination);
+
+    if (!src || !dst) {
       throw new Error(
         "Les coordonnées doivent être au format 'latitude, longitude'.",
       );
     }
 
-    /* ----------------------------------------------------------------
-     * Construction dynamique de la query :
-     *  - alternatives : itinéraires multiples
-     *  - geometries  : GeoJSON pour affichage
-     *  - steps       : instructions de navigation
-     *  - exclude=toll si l’utilisateur veut éviter les péages
-     * ----------------------------------------------------------------*/
-    const coordinates = `${sourceCoords.longitude},${sourceCoords.latitude};${destCoords.longitude},${destCoords.latitude}`;
+    // Snap sur le réseau routier (améliore la précision & évite les détours)
+    const sourceSnapped = await this.snapToRoad(src.latitude, src.longitude);
+    const destSnapped = await this.snapToRoad(dst.latitude, dst.longitude);
+
+    const coordinates = `${sourceSnapped.longitude},${sourceSnapped.latitude};${destSnapped.longitude},${destSnapped.latitude}`;
+
+    /* ------------------------------------------------------------- */
+    /*  Construction des paramètres de requête                       */
+    /* ------------------------------------------------------------- */
     const urlParams = new URLSearchParams({
       alternatives: 'true',
       geometries: 'geojson',
       overview: 'full',
       steps: 'true',
     });
-    if (options?.avoidTolls) {
-      urlParams.append('exclude', 'toll');
-    }
+    if (options?.avoidTolls) urlParams.append('exclude', 'toll');
+
     const url = `${this.osrmBaseUrl}/route/v1/driving/${coordinates}?${urlParams.toString()}`;
 
     try {
@@ -77,8 +105,8 @@ export class OsrmRouteCalculationStrategy implements RouteCalculationStrategy {
           ) ?? [];
 
         return {
-          source,
-          destination,
+          source: `${sourceSnapped.latitude}, ${sourceSnapped.longitude}`,
+          destination: `${destSnapped.latitude}, ${destSnapped.longitude}`,
           distance: `${distanceKm.toFixed(2)} km`,
           duration: `${durationMin.toFixed(0)} minutes`,
           instructions,
@@ -87,6 +115,7 @@ export class OsrmRouteCalculationStrategy implements RouteCalculationStrategy {
           geometry: route.geometry,
         };
       });
+
       return { routes };
     } catch (error: any) {
       throw new InternalServerErrorException(
