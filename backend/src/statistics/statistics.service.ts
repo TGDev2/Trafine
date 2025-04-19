@@ -76,4 +76,31 @@ export class StatisticsService {
 
     return { congestionLevel, incidentCount: recentIncidentCount };
   }
+
+  /**
+   * Renvoie le nombre d’incidents par heure sur la fenêtre glissante spécifiée.
+   * @param windowHours Durée de la fenêtre en heures (par défaut : 24 h).
+   */
+  async getIncidentsByHour(
+    windowHours = 24,
+  ): Promise<Array<{ hour: string; count: number }>> {
+    const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+    const raw = await this.incidentRepository
+      .createQueryBuilder('incident')
+      .select(
+        "to_char(date_trunc('hour', incident.createdAt), 'HH24:00')",
+        'hour',
+      )
+      .addSelect('COUNT(incident.id)', 'count')
+      .where('incident.createdAt >= :since', { since })
+      .groupBy("date_trunc('hour', incident.createdAt)")
+      .orderBy("date_trunc('hour', incident.createdAt)")
+      .getRawMany();
+
+    return raw.map((r) => ({
+      hour: r.hour,
+      count: Number(r.count),
+    }));
+  }
 }

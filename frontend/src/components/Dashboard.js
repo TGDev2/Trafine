@@ -8,6 +8,7 @@ import { apiFetch } from "../utils/api";
 const Dashboard = () => {
   const [incidents, setIncidents] = useState([]);
   const [statistics, setStatistics] = useState(null);
+  const [hourlyStats, setHourlyStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [voteLoadingId, setVoteLoadingId] = useState(null);
   const [error, setError] = useState(null);
@@ -61,12 +62,22 @@ const Dashboard = () => {
     const fetchStats = async () => {
       if (!token) return;
       try {
-        const res = await apiFetch(
+        // stats globales
+        const statsRes = await apiFetch(
           "http://localhost:3000/statistics",
           {},
           { token, logout }
         );
-        if (isMounted) setStatistics(await res.json());
+        // stats horaires
+        const hourlyRes = await apiFetch(
+          "http://localhost:3000/statistics/hourly",
+          {},
+          { token, logout }
+        );
+
+        if (!isMounted) return;
+        setStatistics(await statsRes.json());
+        setHourlyStats(await hourlyRes.json());
       } catch (e) {
         if (isMounted) setError(e.message);
       }
@@ -131,6 +142,19 @@ const Dashboard = () => {
               )}
             </ul>
           </div>
+        </section>
+      )}
+
+      {hourlyStats && (
+        <section>
+          <h3>Incidents par heure (24 h)</h3>
+          <ul>
+            {hourlyStats.map(({ hour, count }) => (
+              <li key={hour}>
+                <strong>{hour}</strong> : {count}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

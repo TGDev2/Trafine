@@ -1,4 +1,10 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { StatisticsService } from './statistics.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -24,5 +30,17 @@ export class StatisticsController {
   @Get('prediction')
   async getPrediction() {
     return await this.statisticsService.getCongestionPrediction();
+  }
+
+  /**
+   * GET /statistics/hourly?window=24
+   * Nombre d’incidents par heure sur les `window` dernières heures (24 h par défaut).
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('hourly')
+  async getHourly(
+    @Query('window', new ParseIntPipe({ optional: true })) window?: number,
+  ) {
+    return this.statisticsService.getIncidentsByHour(window ?? 24);
   }
 }
