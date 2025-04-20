@@ -13,18 +13,14 @@ const Login = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:3000/auth/login", {
+      const res = await fetch("http://localhost:3000/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (!response.ok) {
-        throw new Error("Erreur lors de l'authentification");
-      }
-      const { access_token } = await response.json();
-      login(access_token);
+      if (!res.ok) throw new Error("Erreur lors de l'authentification");
+      const { access_token, refresh_token } = await res.json();
+      login(access_token, refresh_token);
     } catch (err) {
       setError(err.message);
     } finally {

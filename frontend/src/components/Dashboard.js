@@ -12,7 +12,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [voteLoadingId, setVoteLoadingId] = useState(null);
   const [error, setError] = useState(null);
-  const { token, logout } = useAuth();
+  const { token, refreshToken, logout, refreshSession } = useAuth();
   const socketRef = useRef(null);
 
   /** -------------------- WebSocket -------------------- */
@@ -48,7 +48,7 @@ const Dashboard = () => {
         const res = await apiFetch(
           "http://localhost:3000/incidents",
           {},
-          { token, logout }
+          { token, refreshToken, refreshSession, logout }
         );
         if (!isMounted) return;
         setIncidents(await res.json());
@@ -66,13 +66,13 @@ const Dashboard = () => {
         const statsRes = await apiFetch(
           "http://localhost:3000/statistics",
           {},
-          { token, logout }
+          { token, refreshToken, refreshSession, logout }
         );
         // stats horaires
         const hourlyRes = await apiFetch(
           "http://localhost:3000/statistics/hourly",
           {},
-          { token, logout }
+          { token, refreshToken, refreshSession, logout }
         );
 
         if (!isMounted) return;
@@ -88,7 +88,7 @@ const Dashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, [token, logout]);
+  }, [token, refreshToken, refreshSession, logout]);
 
   /** -------------------- Vote helpers -------------------- */
   const voteIncident = async (id, action) => {
@@ -97,7 +97,7 @@ const Dashboard = () => {
       const res = await apiFetch(
         `http://localhost:3000/incidents/${id}/${action}`,
         { method: "PATCH", headers: { "Content-Type": "application/json" } },
-        { token, logout }
+        { token, refreshToken, refreshSession, logout }
       );
       const updated = await res.json();
       setIncidents((prev) => prev.map((i) => (i.id === id ? updated : i)));
