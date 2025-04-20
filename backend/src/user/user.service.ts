@@ -24,7 +24,11 @@ export class UserService {
     return this.userRepository.findOne({ where: { id } });
   }
 
-  async createUser(username: string, plainPassword: string): Promise<User> {
+  async createUser(
+    username: string,
+    plainPassword: string,
+    role: string = 'user',
+  ): Promise<User> {
     const existing = await this.findByUsername(username);
     if (existing) {
       throw new ConflictException('Le nom d’utilisateur est déjà utilisé.');
@@ -33,6 +37,7 @@ export class UserService {
     const user = this.userRepository.create({
       username,
       password: hashedPassword,
+      role,
     });
     return this.userRepository.save(user);
   }

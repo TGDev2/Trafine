@@ -8,6 +8,7 @@ import { UserModule } from './user/user.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { HealthModule } from './health/health.module';
+import { AdminSeed } from './user/admin.seed';
 
 @Module({
   imports: [
@@ -31,6 +32,6 @@ import { HealthModule } from './health/health.module';
     HealthModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [AdminSeed],
 })
 export class AppModule {}

@@ -36,6 +36,18 @@ const TEST_KEY = 'TEST_ENCRYPTION_KEY_32_CHARS_!!';
         FACEBOOK_CLIENT_SECRET: Joi.string().required(),
         FACEBOOK_CALLBACK_URL: Joi.string().uri().required(),
 
+        /** Compte admin seed */
+        ADMIN_USERNAME: Joi.when('NODE_ENV', {
+          is: 'test',
+          then: Joi.string().default('admin'),
+          otherwise: Joi.string().required(),
+        }),
+        ADMIN_PASSWORD: Joi.when('NODE_ENV', {
+          is: 'test',
+          then: Joi.string().min(4).default('admin'),
+          otherwise: Joi.string().min(4).required(),
+        }),
+
         ALLOWED_REDIRECT_URLS: Joi.string()
           .required()
           .custom((value: string, helpers: Joi.CustomHelpers) => {
