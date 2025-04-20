@@ -9,6 +9,7 @@ import {
   Req,
   Query,
   ParseEnumPipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { IncidentService } from './incident.service';
@@ -25,6 +26,7 @@ type IncidentStatus = 'active' | 'expired' | 'archived' | 'all';
 export class IncidentController {
   constructor(private readonly incidentService: IncidentService) {}
 
+  /** Conversion Entity → DTO (centralisée) */
   private toDto(incident: Incident): IncidentResponseDto {
     return {
       id: incident.id,
@@ -34,8 +36,11 @@ export class IncidentController {
       denied: incident.denied,
       latitude: incident.latitude,
       longitude: incident.longitude,
+      status: incident.status,
     };
   }
+
+  /* ------------------ CRUD ------------------ */
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -61,15 +66,17 @@ export class IncidentController {
     return incidents.map((i) => this.toDto(i));
   }
 
+  /* ----------  Votes utilisateur ---------- */
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('user')
   @Patch(':id/confirm')
   async confirm(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Req() req: Request & { user: { userId: number } },
   ): Promise<IncidentResponseDto> {
     const incident = await this.incidentService.confirmIncident(
-      Number(id),
+      id,
       req.user.userId,
     );
     return this.toDto(incident);
@@ -79,13 +86,25 @@ export class IncidentController {
   @Roles('user')
   @Patch(':id/deny')
   async deny(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Req() req: Request & { user: { userId: number } },
   ): Promise<IncidentResponseDto> {
     const incident = await this.incidentService.denyIncident(
-      Number(id),
+      id,
       req.user.userId,
     );
+    return this.toDto(incident);
+  }
+
+  /* ----------  Archivage (modérateurs / admins) ---------- */
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('moderator', 'admin')
+  @Patch(':id/archive')
+  async archive(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<IncidentResponseDto> {
+    const incident = await this.incidentService.archiveIncident(id);
     return this.toDto(incident);
   }
 }

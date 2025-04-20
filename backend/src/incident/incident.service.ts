@@ -26,6 +26,24 @@ export class IncidentService {
   ) {}
 
   /**
+   * Archive définitivement un incident (modération manuelle).
+   * @param incidentId Identifiant de l’incident
+   */
+  async archiveIncident(incidentId: number): Promise<Incident> {
+    const incident = await this.incidentRepository.findOne({
+      where: { id: incidentId },
+    });
+    if (!incident) {
+      throw new NotFoundException(`Incident with id ${incidentId} not found`);
+    }
+    if (incident.status === 'archived') {
+      return incident;
+    }
+    incident.status = 'archived';
+    return this.incidentRepository.save(incident);
+  }
+
+  /**
    * Crée un nouvel incident avec les données fournies.
    * Diffuse immédiatement une alerte via WebSocket afin d'informer les utilisateurs.
    * @param data Données validées de l'incident.

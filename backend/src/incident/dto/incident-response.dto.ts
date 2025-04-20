@@ -21,4 +21,7 @@ export class IncidentResponseDto {
 
   @ApiProperty({ format: 'float', example: 2.3522 })
   longitude!: number;
+
+  @ApiProperty({ enum: ['active', 'expired', 'archived'] })
+  status!: 'active' | 'expired' | 'archived';
 }

@@ -84,6 +84,23 @@ describe('Incident API (e2e)', () => {
     expect(response.body.denied).toBe(false);
   });
 
+  it('should archive an incident as admin', async () => {
+    // Authentification admin (identifiants seedés)
+    const adminLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ username: 'admin', password: 'admin' });
+    const adminToken = adminLogin.body.access_token;
+    expect(adminToken).toBeDefined();
+
+    // Archiver l’incident créé précédemment
+    const res = await request(app.getHttpServer())
+      .patch(`/incidents/${createdIncidentId}/archive`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    expect(res.body).toHaveProperty('status', 'archived');
+  });
+
   it('should automatically expire old incidents', async () => {
     // Création d'un incident avec une date d'expiration passée
     const expiredIncident = await incidentRepository.save({
