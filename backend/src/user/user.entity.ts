@@ -15,24 +15,26 @@ export class User {
   @Column({ unique: true })
   username!: string;
 
-  // Mot de passe haché (bcrypt)
   @Column()
   password!: string;
 
-  // L'email est chiffré pour protéger la donnée sensible
   @Column({ nullable: true, transformer: EncryptionTransformer })
   email?: string;
 
-  // Les informations OAuth sont également chiffrées
   @Column({ nullable: true, transformer: EncryptionTransformer })
   oauthProvider?: string;
 
   @Column({ nullable: true, transformer: EncryptionTransformer })
   oauthId?: string;
 
-  // Exemple de champ pour stocker le rôle ou d’autres informations
   @Column({ default: 'user' })
   role!: string;
+
+  /** ------------------------------------------------------------------
+   *  Jeton d’actualisation (hashé) — permet la révocation serveur‑side
+   *  ------------------------------------------------------------------ */
+  @Column({ nullable: true })
+  refreshTokenHash?: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;

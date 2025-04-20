@@ -1,8 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { User } from '../user/user.entity';
-import { RegisterUserDto } from './auth.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -11,73 +15,66 @@ export class AuthService {
     private readonly userService: UserService,
   ) {}
 
+  /* --------  VALIDATION CREDENTIALS (local strategy)  -------- */
   async validateUser(
     username: string,
     password: string,
   ): Promise<Omit<User, 'password'>> {
     const user = await this.userService.findByUsername(username);
-    if (!user) {
+    if (!user || !(await this.userService.verifyPassword(user, password))) {
       throw new UnauthorizedException(
         'Nom d’utilisateur ou mot de passe incorrect',
       );
     }
-    const isPasswordValid = await this.userService.verifyPassword(
-      user,
-      password,
-    );
-    if (!isPasswordValid) {
-      throw new UnauthorizedException(
-        'Nom d’utilisateur ou mot de passe incorrect',
-      );
-    }
-    const { password: _ignored, ...result } = user;
-    return result;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _ignored, ...safe } = user;
+    return safe;
   }
 
-  /**
-   * Génère un token JWT incluant id, username et rôle.
-   */
-  login(user: Pick<User, 'id' | 'username' | 'role'>): {
-    access_token: string;
-  } {
-    const payload = {
+  /* --------  TOKEN PAIR GENERATION  -------- */
+  private async signTokenPair(payload: {
+    sub: number;
+    username: string;
+    role: string;
+  }): Promise<{ access_token: string; refresh_token: string }> {
+    const access_token = this.jwtService.sign(payload, { expiresIn: '1h' });
+    const refresh_token = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    // Stockage du hash côté serveur (révocation possible)
+    await this.userService.setRefreshToken(payload.sub, refresh_token);
+    return { access_token, refresh_token };
+  }
+
+  /* --------  LOGIN / REGISTER / OAUTH  -------- */
+  async login(user: Pick<User, 'id' | 'username' | 'role'>) {
+    return this.signTokenPair({
       sub: user.id,
       username: user.username,
       role: user.role,
-    };
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
+    });
   }
 
-  async register(
-    registerUserDto: RegisterUserDto,
-  ): Promise<{ access_token: string }> {
+  async register(dto: { username: string; password: string }) {
     const newUser = await this.userService.createUser(
-      registerUserDto.username,
-      registerUserDto.password,
+      dto.username,
+      dto.password,
     );
-    // On inclut désormais newUser.role (par défaut 'user')
     return this.login({
-      username: newUser.username,
       id: newUser.id,
+      username: newUser.username,
       role: newUser.role,
     });
   }
 
-  async validateOAuthLogin(
-    provider: string,
-    profile: any,
-  ): Promise<Omit<User, 'password'>> {
+  async validateOAuthLogin(provider: string, profile: any) {
     const email =
-      profile.emails && profile.emails.length > 0
-        ? profile.emails[0].value
-        : null;
+      profile.emails && profile.emails.length ? profile.emails[0].value : null;
     const displayName =
       profile.displayName ||
       (profile.name
         ? `${profile.name.givenName} ${profile.name.familyName}`
         : null);
+
     const oauthId = profile.id;
     const user = await this.userService.findOrCreateOAuthUser(
       provider,
@@ -85,7 +82,40 @@ export class AuthService {
       email,
       displayName,
     );
-    const { password, ...result } = user;
-    return result;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...safe } = user;
+    return safe;
+  }
+
+  /* --------  REFRESH FLOW  -------- */
+  async refresh(refreshToken: string) {
+    if (!refreshToken) throw new BadRequestException('Refresh token required');
+
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Refresh token invalide ou expiré');
+    }
+
+    const user = await this.userService.findById(payload.sub);
+    if (!user || !user.refreshTokenHash) throw new UnauthorizedException();
+
+    const tokenMatch = await bcrypt.compare(
+      refreshToken,
+      user.refreshTokenHash,
+    );
+    if (!tokenMatch) throw new UnauthorizedException();
+
+    return this.signTokenPair({
+      sub: user.id,
+      username: user.username,
+      role: user.role,
+    });
+  }
+
+  /* --------  LOGOUT  -------- */
+  async logout(userId: number): Promise<void> {
+    await this.userService.removeRefreshToken(userId);
   }
 }
