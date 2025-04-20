@@ -35,13 +35,18 @@ export class NavigationService {
     destination: string,
     options?: { avoidTolls?: boolean },
   ): Promise<string> {
-    const routeData = await this.calculateRoute(source, destination, options);
-    const routeDataStr = JSON.stringify(routeData);
+    const { routes } = await this.calculateRoute(source, destination, options);
+
+    const sharePayload = {
+      routes: routes.map(({ geometry, ...rest }) => rest),
+    };
+
+    const payloadStr = JSON.stringify(sharePayload);
     try {
-      const qrCodeDataUrl = await QRCode.toDataURL(routeDataStr);
+      const qrCodeDataUrl = await QRCode.toDataURL(payloadStr);
       return qrCodeDataUrl;
-    } catch (error) {
-      throw new Error('La génération du QR code a échoué');
+    } catch (error: any) {
+      throw new Error(`La génération du QR code a échoué : ${error.message}`);
     }
   }
 }

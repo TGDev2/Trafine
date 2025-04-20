@@ -6,16 +6,33 @@ import { geocode } from "../utils/geocode";
  * @param {{socket?: import("socket.io-client").Socket}} props
  */
 function RouteCalculator({ socket }) {
-  const [source, setSource] = useState("");
-  const [destination, setDestination] = useState("");
+  // --- Saisie libre ----
+  const [sourceInput, setSourceInput] = useState("");
+  const [destinationInput, setDestinationInput] = useState("");
+
+  // --- Coordonnées validées (lat, lon) ----
+  const [sourceCoords, setSourceCoords] = useState(null);
+  const [destCoords, setDestCoords] = useState(null);
+
   const [avoidTolls, setAvoidTolls] = useState(false);
   const [routes, setRoutes] = useState(null);
   const [qrCode, setQrCode] = useState(null);
+
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
 
-  // Nettoyage des champs et résultats avant nouveau calcul
+  /** --------------------------------------------------------
+   *  Helpers
+   * ------------------------------------------------------- */
+  const coordRegex = /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/; // 48.85, 2.35
+
+  const resolveCoord = async (value) =>
+    coordRegex.test(value) ? value : await geocode(value);
+
+  /** --------------------------------------------------------
+   *  Calcul d’itinéraire
+   * ------------------------------------------------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -24,31 +41,19 @@ function RouteCalculator({ socket }) {
     setQrCode(null);
 
     try {
-      /* ---------------------------------------------------------------
-       *    Déterminer si l’utilisateur a déjà entré des coordonnées.
-       *    Sinon, appel Nominatim pour obtenir "lat, lon"
-       * ------------------------------------------------------------- */
-      const coordRegex = /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/; // 48.85, 2.35
+      const src = await resolveCoord(sourceInput);
+      const dst = await resolveCoord(destinationInput);
 
-      const sourceCoords = coordRegex.test(source)
-        ? source
-        : await geocode(source);
-      const destCoords = coordRegex.test(destination)
-        ? destination
-        : await geocode(destination);
+      // Persister les coordonnées pour un futur partage
+      setSourceCoords(src);
+      setDestCoords(dst);
 
       const response = await fetch(
         "http://localhost:3000/navigation/calculate",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            source: sourceCoords,
-            destination: destCoords,
-            avoidTolls,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: src, destination: dst, avoidTolls }),
         }
       );
       if (!response.ok) {
@@ -58,15 +63,18 @@ function RouteCalculator({ socket }) {
       const calculatedRoutes = data.routes || [];
       setRoutes(calculatedRoutes);
 
+      /*  Abonnement aux alertes pour le premier itinéraire  */
       if (socket && calculatedRoutes.length > 0) {
         const firstGeometry = calculatedRoutes[0].geometry;
         if (firstGeometry?.type === "LineString") {
-          const feature = {
-            type: "Feature",
-            geometry: firstGeometry,
-            properties: {},
-          };
-          socket.emit("subscribeRoute", { geometry: feature, threshold: 1000 });
+          socket.emit("subscribeRoute", {
+            geometry: {
+              type: "Feature",
+              geometry: firstGeometry,
+              properties: {},
+            },
+            threshold: 1000,
+          });
         }
       }
     } catch (err) {
@@ -76,11 +84,12 @@ function RouteCalculator({ socket }) {
     }
   };
 
+  /** --------------------------------------------------------
+   *  Partage d’itinéraire
+   * ------------------------------------------------------- */
   const handleShare = async () => {
-    if (!source || !destination) {
-      setError(
-        "Veuillez spécifier la source et la destination avant de partager."
-      );
+    if (!sourceCoords || !destCoords) {
+      setError("Vous devez d’abord calculer un itinéraire valide.");
       return;
     }
     setQrLoading(true);
@@ -89,10 +98,12 @@ function RouteCalculator({ socket }) {
     try {
       const response = await fetch("http://localhost:3000/navigation/share", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ source, destination, avoidTolls }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: sourceCoords,
+          destination: destCoords,
+          avoidTolls,
+        }),
       });
       if (!response.ok) {
         throw new Error("Erreur lors de la génération du QR code");
@@ -106,6 +117,9 @@ function RouteCalculator({ socket }) {
     }
   };
 
+  /** --------------------------------------------------------
+   *  Rendu
+   * ------------------------------------------------------- */
   return (
     <div
       style={{
@@ -117,26 +131,31 @@ function RouteCalculator({ socket }) {
     >
       <h2>Calculateur d’itinéraire</h2>
       <form onSubmit={handleSubmit}>
+        {/* Source */}
         <div style={{ marginBottom: "10px" }}>
           <label style={{ marginRight: "10px" }}>Point de départ :</label>
           <input
             type="text"
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
+            value={sourceInput}
+            onChange={(e) => setSourceInput(e.target.value)}
             required
             placeholder="Ex : Paris ou 48.8566, 2.3522"
           />
         </div>
+
+        {/* Destination */}
         <div style={{ marginBottom: "10px" }}>
           <label style={{ marginRight: "10px" }}>Destination :</label>
           <input
             type="text"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
+            value={destinationInput}
+            onChange={(e) => setDestinationInput(e.target.value)}
             required
             placeholder="Ex : Lyon ou 45.7640, 4.8357"
           />
         </div>
+
+        {/* Options */}
         <div style={{ marginBottom: "10px" }}>
           <label>
             <input
@@ -148,6 +167,7 @@ function RouteCalculator({ socket }) {
             Éviter les péages
           </label>
         </div>
+
         <button type="submit" disabled={loading}>
           {loading ? "Calcul en cours..." : "Calculer"}
         </button>
@@ -155,10 +175,9 @@ function RouteCalculator({ socket }) {
 
       {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
 
-      {/* Affichage des différentes routes retournées */}
+      {/* Résultats */}
       {routes && routes.length > 0 && (
         <div style={{ marginTop: "15px" }}>
-          {/* Carte de l’itinéraire */}
           <RouteMap routes={routes} />
           <h3>Itinéraire(s) calculé(s)</h3>
           {routes.map((rt, idx) => (
@@ -193,6 +212,7 @@ function RouteCalculator({ socket }) {
               </ul>
             </div>
           ))}
+
           <button
             onClick={handleShare}
             disabled={qrLoading}
@@ -203,7 +223,7 @@ function RouteCalculator({ socket }) {
         </div>
       )}
 
-      {/* Affichage du QR code si disponible */}
+      {/* QR‑code */}
       {qrCode && (
         <div style={{ marginTop: "15px" }}>
           <h4>QR Code pour partager l'itinéraire</h4>

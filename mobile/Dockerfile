@@ -19,4 +19,4 @@ EXPOSE 19001
 EXPOSE 19002
 
 
-CMD ["npx", "expo", "start", "--web", "--non-interactive", "--clear"]
+CMD ["npx", "expo", "start", "--lan", "--clear"]
