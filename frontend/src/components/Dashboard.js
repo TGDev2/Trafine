@@ -9,6 +9,7 @@ const Dashboard = () => {
   const [incidents, setIncidents] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [hourlyStats, setHourlyStats] = useState(null);
+  const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(true);
   const [voteLoadingId, setVoteLoadingId] = useState(null);
   const [error, setError] = useState(null);
@@ -62,19 +63,16 @@ const Dashboard = () => {
     const fetchStats = async () => {
       if (!token) return;
       try {
-        // stats globales
         const statsRes = await apiFetch(
           "http://localhost:3000/statistics",
           {},
           { token, refreshToken, refreshSession, logout }
         );
-        // stats horaires
         const hourlyRes = await apiFetch(
           "http://localhost:3000/statistics/hourly",
           {},
           { token, refreshToken, refreshSession, logout }
         );
-
         if (!isMounted) return;
         setStatistics(await statsRes.json());
         setHourlyStats(await hourlyRes.json());
@@ -83,8 +81,25 @@ const Dashboard = () => {
       }
     };
 
+    const fetchPrediction = async () => {
+      if (!token) return;
+      try {
+        const predRes = await apiFetch(
+          "http://localhost:3000/statistics/prediction",
+          {},
+          { token, refreshToken, refreshSession, logout }
+        );
+        if (!isMounted) return;
+        setPrediction(await predRes.json());
+      } catch (e) {
+        if (isMounted) setError(e.message);
+      }
+    };
+
     fetchIncidents();
     fetchStats();
+    fetchPrediction();
+
     return () => {
       isMounted = false;
     };
@@ -142,6 +157,21 @@ const Dashboard = () => {
               )}
             </ul>
           </div>
+        </section>
+      )}
+
+      {prediction && (
+        <section>
+          <h2>Prévision de la Congestion</h2>
+          <p>
+            <strong>Niveau :</strong>{" "}
+            {prediction.congestionLevel.charAt(0).toUpperCase() +
+              prediction.congestionLevel.slice(1)}
+          </p>
+          <p>
+            <strong>Incidents récents (60 min) :</strong>{" "}
+            {prediction.incidentCount}
+          </p>
         </section>
       )}
 
