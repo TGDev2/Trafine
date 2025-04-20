@@ -18,13 +18,13 @@ export class User {
   @Column()
   password!: string;
 
-  @Column({ nullable: true, transformer: EncryptionTransformer })
+  @Column({ type: 'text', nullable: true, transformer: EncryptionTransformer })
   email?: string;
 
-  @Column({ nullable: true, transformer: EncryptionTransformer })
+  @Column({ type: 'text', nullable: true, transformer: EncryptionTransformer })
   oauthProvider?: string;
 
-  @Column({ nullable: true, transformer: EncryptionTransformer })
+  @Column({ type: 'text', nullable: true, transformer: EncryptionTransformer })
   oauthId?: string;
 
   @Column({ default: 'user' })
@@ -33,7 +33,7 @@ export class User {
   /** ------------------------------------------------------------------
    *  Jeton d’actualisation (hashé) — permet la révocation serveur‑side
    *  ------------------------------------------------------------------ */
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   refreshTokenHash?: string | null;
 
   @CreateDateColumn()
