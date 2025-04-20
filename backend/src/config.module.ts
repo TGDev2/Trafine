@@ -1,65 +1,123 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
+import * as crypto from 'crypto';
 
-const TEST_KEY = 'TEST_ENCRYPTION_KEY_32_CHARS_!!';
+/**
+ * Génère une chaîne hexadécimale de longueur <bytes>*2.
+ */
+function randomHex(bytes: number): string {
+  return crypto.randomBytes(bytes).toString('hex');
+}
+
+/**
+ * Valeurs par défaut uniquement pour les environnements non‑prod.
+ *  - Clés à 32 octets pour AES‑256 / JWT
+ *  - Identifiants OAuth factices (les vrais seront fournis en production)
+ */
+const DEV_DEFAULTS = {
+  ENCRYPTION_KEY: randomHex(16), // 32 caractères
+  JWT_SECRET: randomHex(32), // 64 caractères
+  GOOGLE_CLIENT_ID: 'dummy-google-id',
+  GOOGLE_CLIENT_SECRET: 'dummy-google-secret',
+  GOOGLE_CALLBACK_URL: 'http://localhost:3000/auth/google/callback',
+  FACEBOOK_CLIENT_ID: 'dummy-facebook-id',
+  FACEBOOK_CLIENT_SECRET: 'dummy-facebook-secret',
+  FACEBOOK_CALLBACK_URL: 'http://localhost:3000/auth/facebook/callback',
+  ALLOWED_REDIRECT_URLS: 'http://localhost:3001,myapp://redirect',
+};
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      expandVariables: true,
+      /**
+       * Avant validation, injecte les valeurs par défaut si l’on n’est
+       * ni en production ni en test (les tests disposent déjà d’une
+       * clé fixée pour la reproductibilité).
+       */
+      load: [
+        () => {
+          if (
+            process.env.NODE_ENV !== 'production' &&
+            process.env.NODE_ENV !== 'test'
+          ) {
+            Object.entries(DEV_DEFAULTS).forEach(([k, v]) => {
+              if (!process.env[k]) process.env[k] = v;
+            });
+          }
+          return {};
+        },
+      ],
       validationSchema: Joi.object({
         NODE_ENV: Joi.string()
           .valid('development', 'test', 'production')
           .default('development'),
 
-        DATABASE_HOST: Joi.string().required(),
+        DATABASE_HOST: Joi.string().default('postgres'),
         DATABASE_PORT: Joi.number().default(5432),
-        POSTGRES_USER: Joi.string().required(),
-        POSTGRES_PASSWORD: Joi.string().required(),
-        POSTGRES_DB: Joi.string().required(),
+        POSTGRES_USER: Joi.string().default('postgres'),
+        POSTGRES_PASSWORD: Joi.string().default('postgres'),
+        POSTGRES_DB: Joi.string().default('trafine'),
 
-        JWT_SECRET: Joi.string().required(),
+        /* --------  JWT & chiffrement  -------- */
+        JWT_SECRET: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().default(DEV_DEFAULTS.JWT_SECRET),
+        }),
 
         ENCRYPTION_KEY: Joi.when('NODE_ENV', {
           is: 'test',
-          then: Joi.string().length(32).default(TEST_KEY),
-          otherwise: Joi.string().length(32).required(),
+          then: Joi.string()
+            .length(32)
+            .default('TEST_ENCRYPTION_KEY_32_CHARS_!!'),
+          otherwise: Joi.string()
+            .length(32)
+            .default(DEV_DEFAULTS.ENCRYPTION_KEY),
         }),
 
-        /** OAuth */
-        GOOGLE_CLIENT_ID: Joi.string().required(),
-        GOOGLE_CLIENT_SECRET: Joi.string().required(),
-        GOOGLE_CALLBACK_URL: Joi.string().uri().required(),
-        FACEBOOK_CLIENT_ID: Joi.string().required(),
-        FACEBOOK_CLIENT_SECRET: Joi.string().required(),
-        FACEBOOK_CALLBACK_URL: Joi.string().uri().required(),
-
-        /** Compte admin seed */
-        ADMIN_USERNAME: Joi.when('NODE_ENV', {
-          is: 'test',
-          then: Joi.string().default('admin'),
-          otherwise: Joi.string().required(),
+        /* --------  OAuth -------- */
+        GOOGLE_CLIENT_ID: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().default(DEV_DEFAULTS.GOOGLE_CLIENT_ID),
         }),
-        ADMIN_PASSWORD: Joi.when('NODE_ENV', {
-          is: 'test',
-          then: Joi.string().min(4).default('admin'),
-          otherwise: Joi.string().min(4).required(),
+        GOOGLE_CLIENT_SECRET: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().default(DEV_DEFAULTS.GOOGLE_CLIENT_SECRET),
         }),
+        GOOGLE_CALLBACK_URL: Joi.string()
+          .uri()
+          .default(DEV_DEFAULTS.GOOGLE_CALLBACK_URL),
 
-        ALLOWED_REDIRECT_URLS: Joi.string()
-          .required()
-          .custom((value: string, helpers: Joi.CustomHelpers) => {
-            const list = value.split(',').map((u) => u.trim());
-            const urlRegex = /^(https?:\/\/|[a-z]+:\/\/).+/i;
-            if (!list.every((u) => urlRegex.test(u))) {
-              return helpers.error('any.invalid');
-            }
-            return value;
-          }, 'uri-list validation'),
+        FACEBOOK_CLIENT_ID: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().default(DEV_DEFAULTS.FACEBOOK_CLIENT_ID),
+        }),
+        FACEBOOK_CLIENT_SECRET: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().default(DEV_DEFAULTS.FACEBOOK_CLIENT_SECRET),
+        }),
+        FACEBOOK_CALLBACK_URL: Joi.string()
+          .uri()
+          .default(DEV_DEFAULTS.FACEBOOK_CALLBACK_URL),
+
+        /* --------  Compte admin initial  -------- */
+        ADMIN_USERNAME: Joi.string().default('admin'),
+        ADMIN_PASSWORD: Joi.string().min(4).default('admin'),
+
+        /* --------  Divers  -------- */
+        ALLOWED_REDIRECT_URLS: Joi.string().default(
+          DEV_DEFAULTS.ALLOWED_REDIRECT_URLS,
+        ),
+        OSRM_BASE_URL: Joi.string().uri().default('http://osrm:5000'),
       }),
-      expandVariables: true,
     }),
   ],
 })
