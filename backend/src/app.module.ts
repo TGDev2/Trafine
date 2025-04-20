@@ -9,6 +9,7 @@ import { AlertsModule } from './alerts/alerts.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { HealthModule } from './health/health.module';
 import { AdminSeed } from './user/admin.seed';
+import { PostgisInitService } from './postgis-init.service';
 
 @Module({
   imports: [
@@ -32,6 +33,6 @@ import { AdminSeed } from './user/admin.seed';
     HealthModule,
   ],
   controllers: [],
-  providers: [AdminSeed],
+  providers: [AdminSeed, PostgisInitService],
 })
 export class AppModule {}
