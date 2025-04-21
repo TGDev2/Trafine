@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import RouteMap from "./RouteMap";
 import { geocode } from "../utils/geocode";
 
@@ -6,87 +6,100 @@ import { geocode } from "../utils/geocode";
  * @param {{socket?: import("socket.io-client").Socket}} props
  */
 function RouteCalculator({ socket }) {
-  // --- Saisie libre ----
+  /* ---------------------------  State  --------------------------- */
   const [sourceInput, setSourceInput] = useState("");
   const [destinationInput, setDestinationInput] = useState("");
-
-  // --- Coordonnées validées (lat, lon) ----
   const [sourceCoords, setSourceCoords] = useState(null);
   const [destCoords, setDestCoords] = useState(null);
-
   const [avoidTolls, setAvoidTolls] = useState(false);
   const [routes, setRoutes] = useState(null);
   const [qrCode, setQrCode] = useState(null);
-
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
 
-  /** --------------------------------------------------------
-   *  Helpers
-   * ------------------------------------------------------- */
-  const coordRegex = /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/; // 48.85, 2.35
-
-  const resolveCoord = async (value) =>
-    coordRegex.test(value) ? value : await geocode(value);
-
-  /** --------------------------------------------------------
-   *  Calcul d’itinéraire
-   * ------------------------------------------------------- */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setRoutes(null);
-    setQrCode(null);
-
-    try {
-      const src = await resolveCoord(sourceInput);
-      const dst = await resolveCoord(destinationInput);
-
-      // Persister les coordonnées pour un futur partage
-      setSourceCoords(src);
-      setDestCoords(dst);
-
-      const response = await fetch(
-        "http://localhost:3000/navigation/calculate",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ source: src, destination: dst, avoidTolls }),
-        }
-      );
-      if (!response.ok) {
-        throw new Error("Erreur lors du calcul de l'itinéraire");
+  /* --------------------------------------------------------------- */
+  /*  Calcul d’itinéraire (extrait dans une callback réutilisable)   */
+  /* --------------------------------------------------------------- */
+  const handleCalculateRoute = useCallback(
+    async ({ silent = false } = {}) => {
+      const coordRegex = /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/;
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+        setRoutes(null);
       }
-      const data = await response.json();
-      const calculatedRoutes = data.routes || [];
-      setRoutes(calculatedRoutes);
+      try {
+        // Résolution des coordonnées (inline pour satisfaire exhaustive-deps)
+        const src = coordRegex.test(sourceInput)
+          ? sourceInput
+          : await geocode(sourceInput);
+        const dst = coordRegex.test(destinationInput)
+          ? destinationInput
+          : await geocode(destinationInput);
 
-      /*  Abonnement aux alertes pour le premier itinéraire  */
-      if (socket && calculatedRoutes.length > 0) {
-        const firstGeometry = calculatedRoutes[0].geometry;
-        if (firstGeometry?.type === "LineString") {
-          socket.emit("subscribeRoute", {
-            geometry: {
-              type: "Feature",
-              geometry: firstGeometry,
-              properties: {},
-            },
-            threshold: 1000,
-          });
+        setSourceCoords(src);
+        setDestCoords(dst);
+
+        const response = await fetch(
+          "http://localhost:3000/navigation/calculate",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source: src, destination: dst, avoidTolls }),
+          }
+        );
+        if (!response.ok) throw new Error("Erreur lors du calcul d'itinéraire");
+
+        const data = await response.json();
+        const calculatedRoutes = data.routes || [];
+        setRoutes(calculatedRoutes);
+
+        /* (Re)abonnement pour la première alternative */
+        if (socket && calculatedRoutes.length > 0) {
+          const firstGeometry = calculatedRoutes[0].geometry;
+          if (firstGeometry?.type === "LineString") {
+            socket.emit("subscribeRoute", {
+              geometry: {
+                type: "Feature",
+                geometry: firstGeometry,
+                properties: {},
+              },
+              threshold: 1000,
+            });
+          }
         }
+      } catch (err) {
+        if (!silent) setError(err.message);
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [sourceInput, destinationInput, avoidTolls, socket]
+  );
 
-  /** --------------------------------------------------------
-   *  Partage d’itinéraire
-   * ------------------------------------------------------- */
+  /* ----------------------------------------------
+   *  Recalcul automatique sur « incidentAlert »
+   *  – throttlé (1 exécution max toutes les 10 s)
+   * --------------------------------------------- */
+  useEffect(() => {
+    if (!socket) return;
+    let lastRun = 0;
+    const THROTTLE_MS = 10_000;
+
+    const onIncidentAlert = () => {
+      const now = Date.now();
+      if (routes && now - lastRun >= THROTTLE_MS) {
+        lastRun = now;
+        handleCalculateRoute({ silent: true });
+      }
+    };
+
+    socket.on("incidentAlert", onIncidentAlert);
+    return () => socket.off("incidentAlert", onIncidentAlert);
+  }, [socket, routes, handleCalculateRoute]);
+
+  /* --------------------------  QR Share  -------------------------- */
   const handleShare = async () => {
     if (!sourceCoords || !destCoords) {
       setError("Vous devez d’abord calculer un itinéraire valide.");
@@ -105,9 +118,8 @@ function RouteCalculator({ socket }) {
           avoidTolls,
         }),
       });
-      if (!response.ok) {
-        throw new Error("Erreur lors de la génération du QR code");
-      }
+      if (!response.ok)
+        throw new Error("Erreur lors de la génération du QR code");
       const data = await response.json();
       setQrCode(data.qrCode);
     } catch (err) {
@@ -117,9 +129,7 @@ function RouteCalculator({ socket }) {
     }
   };
 
-  /** --------------------------------------------------------
-   *  Rendu
-   * ------------------------------------------------------- */
+  /* --------------------------  Render  ---------------------------- */
   return (
     <div
       style={{
@@ -130,10 +140,17 @@ function RouteCalculator({ socket }) {
       }}
     >
       <h2>Calculateur d’itinéraire</h2>
-      <form onSubmit={handleSubmit}>
+
+      {/* -------  Formulaire ------- */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleCalculateRoute();
+        }}
+      >
         {/* Source */}
         <div style={{ marginBottom: "10px" }}>
-          <label style={{ marginRight: "10px" }}>Point de départ :</label>
+          <label style={{ marginRight: "10px" }}>Point de départ :</label>
           <input
             type="text"
             value={sourceInput}
@@ -145,7 +162,7 @@ function RouteCalculator({ socket }) {
 
         {/* Destination */}
         <div style={{ marginBottom: "10px" }}>
-          <label style={{ marginRight: "10px" }}>Destination :</label>
+          <label style={{ marginRight: "10px" }}>Destination :</label>
           <input
             type="text"
             value={destinationInput}
@@ -169,13 +186,13 @@ function RouteCalculator({ socket }) {
         </div>
 
         <button type="submit" disabled={loading}>
-          {loading ? "Calcul en cours..." : "Calculer"}
+          {loading ? "Calcul en cours…" : "Calculer"}
         </button>
       </form>
 
-      {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
+      {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
 
-      {/* Résultats */}
+      {/* -------  Résultats ------- */}
       {routes && routes.length > 0 && (
         <div style={{ marginTop: "15px" }}>
           <RouteMap routes={routes} />
@@ -191,19 +208,17 @@ function RouteCalculator({ socket }) {
               }}
             >
               <p>
-                <strong>Distance :</strong> {rt.distance}
+                <strong>Distance :</strong> {rt.distance}
               </p>
               <p>
-                <strong>Durée :</strong> {rt.duration}
+                <strong>Durée :</strong> {rt.duration}
               </p>
               <p>
-                <strong>Type d’itinéraire :</strong>{" "}
-                {rt.recalculated
-                  ? "Recalculé en raison d'incidents confirmés"
-                  : "Optimal"}
+                <strong>Type :</strong>{" "}
+                {rt.recalculated ? "Recalculé" : "Optimal"}
               </p>
               <p>
-                <strong>Instructions :</strong>
+                <strong>Instructions :</strong>
               </p>
               <ul>
                 {rt.instructions.map((instr, i) => (
@@ -218,18 +233,18 @@ function RouteCalculator({ socket }) {
             disabled={qrLoading}
             style={{ marginTop: "10px", padding: "8px 12px" }}
           >
-            {qrLoading ? "Génération du QR code..." : "Partager l'itinéraire"}
+            {qrLoading ? "Génération du QR code…" : "Partager l’itinéraire"}
           </button>
         </div>
       )}
 
-      {/* QR‑code */}
+      {/* -------  QR code ------- */}
       {qrCode && (
         <div style={{ marginTop: "15px" }}>
-          <h4>QR Code pour partager l'itinéraire</h4>
+          <h4>QR code de partage</h4>
           <img
             src={qrCode}
-            alt="QR Code Itinéraire"
+            alt="QR code itinéraire"
             style={{ maxWidth: "200px" }}
           />
         </div>
