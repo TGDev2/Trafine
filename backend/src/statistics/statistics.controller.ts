@@ -18,18 +18,20 @@ export class StatisticsController {
    */
   @UseGuards(JwtAuthGuard)
   @Get()
-  async getStatistics() {
-    return await this.statisticsService.getTrafficStatistics();
+  getStatistics() {
+    return this.statisticsService.getTrafficStatistics();
   }
 
   /**
-   * GET /statistics/prediction
-   * Renvoie la prédiction du niveau de congestion basé sur les incidents récents.
+   * GET /statistics/prediction?at=2025-04-22T18:00:00Z
+   * - `at` (ISO 8601, UTC) facultatif : heure cible à prédire.
+   *   • absent ⇒ prédiction pour la prochaine heure.
    */
   @UseGuards(JwtAuthGuard)
   @Get('prediction')
-  async getPrediction() {
-    return await this.statisticsService.getCongestionPrediction();
+  getPrediction(@Query('at') at?: string) {
+    const target = at ? new Date(at) : undefined;
+    return this.statisticsService.getCongestionPrediction(target);
   }
 
   /**
@@ -38,7 +40,7 @@ export class StatisticsController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('hourly')
-  async getHourly(
+  getHourly(
     @Query('window', new ParseIntPipe({ optional: true })) window?: number,
   ) {
     return this.statisticsService.getIncidentsByHour(window ?? 24);

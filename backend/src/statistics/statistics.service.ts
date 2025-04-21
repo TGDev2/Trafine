@@ -3,6 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Incident } from '../incident/incident.entity';
 import { Repository, MoreThan } from 'typeorm';
 
+const LOW_THRESHOLD = 5;
+const MODERATE_THRESHOLD = 10;
+
 @Injectable()
 export class StatisticsService {
   constructor(
@@ -10,17 +13,10 @@ export class StatisticsService {
     private incidentRepository: Repository<Incident>,
   ) {}
 
-  /**
-   * Agrège les statistiques de trafic à partir des incidents enregistrés.
-   * @returns Un objet contenant le nombre total d’incidents, le nombre d’incidents confirmés,
-   * le nombre d’incidents infirmés et la répartition par type d’incident.
-   */
-  async getTrafficStatistics(): Promise<{
-    totalIncidents: number;
-    confirmedIncidents: number;
-    deniedIncidents: number;
-    incidentsByType: Record<string, number>;
-  }> {
+  /* ------------------------------------------------------------------
+   *  Statistiques brutes
+   * -----------------------------------------------------------------*/
+  async getTrafficStatistics() {
     const totalIncidents = await this.incidentRepository.count();
     const confirmedIncidents = await this.incidentRepository.count({
       where: { confirmed: true },
@@ -37,10 +33,7 @@ export class StatisticsService {
       .getRawMany();
 
     const incidentsByType = incidentsByTypeRaw.reduce(
-      (acc, curr) => {
-        acc[curr.type] = Number(curr.count);
-        return acc;
-      },
+      (acc, curr) => ({ ...acc, [curr.type]: Number(curr.count) }),
       {} as Record<string, number>,
     );
 
@@ -52,55 +45,83 @@ export class StatisticsService {
     };
   }
 
-  /**
-   * Prédit le niveau de congestion en se basant sur les incidents des dernières 60 minutes.
-   * @returns Un objet contenant le niveau de congestion et le nombre d’incidents récents.
-   */
-  async getCongestionPrediction(): Promise<{
-    congestionLevel: string;
+  /* ------------------------------------------------------------------
+   *  Prédiction historisée
+   *  -----------------------------------------------------------------
+   *  - `at` : date/heure pour laquelle on veut la prédiction
+   *    (par défaut : +1 h — anticipation « prochaine heure »)
+   *  - Algorithme : moyenne glissante sur l’ensemble de l’historique
+   *    pour (jour‑semaine × heure)
+   * -----------------------------------------------------------------*/
+  async getCongestionPrediction(
+    at: Date = new Date(Date.now() + 60 * 60 * 1000),
+  ): Promise<{
+    timestamp: string;
+    congestionLevel: 'low' | 'moderate' | 'high';
     incidentCount: number;
+    daysAnalysed: number;
   }> {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentIncidentCount = await this.incidentRepository.count({
-      where: {
-        createdAt: MoreThan(oneHourAgo),
-      },
-    });
+    const targetDow = at.getUTCDay(); // 0 = dimanche
+    const targetHour = at.getUTCHours(); // heure UTC
 
-    let congestionLevel = 'low';
-    if (recentIncidentCount > 10) {
-      congestionLevel = 'high';
-    } else if (recentIncidentCount > 5) {
-      congestionLevel = 'moderate';
-    }
+    /* ------------------------------------------------------------
+     *  Agrégation : total incidents & jours distincts
+     * -----------------------------------------------------------*/
+    const raw = await this.incidentRepository
+      .createQueryBuilder('incident')
+      .select('COUNT(*)', 'cnt')
+      .addSelect(
+        'COUNT(DISTINCT DATE_TRUNC(\'day\', incident."createdAt"))',
+        'days',
+      )
+      .where('EXTRACT(DOW FROM incident."createdAt") = :dow', {
+        dow: targetDow,
+      })
+      .andWhere('EXTRACT(HOUR FROM incident."createdAt") = :hour', {
+        hour: targetHour,
+      })
+      .getRawOne<{ cnt: string; days: string }>();
 
-    return { congestionLevel, incidentCount: recentIncidentCount };
+    const total = Number(raw?.cnt ?? 0);
+    const days = Number(raw?.days ?? 0) || 1;
+    const avg = total / days;
+
+    /* ------------------------------------------------------------
+     *  Classification simple
+     * -----------------------------------------------------------*/
+    const congestionLevel =
+      avg >= MODERATE_THRESHOLD
+        ? 'high'
+        : avg >= LOW_THRESHOLD
+          ? 'moderate'
+          : 'low';
+
+    return {
+      timestamp: at.toISOString(),
+      congestionLevel,
+      incidentCount: Math.round(avg),
+      daysAnalysed: days,
+    };
   }
 
-  /**
-   * Renvoie le nombre d’incidents par heure sur la fenêtre glissante spécifiée.
-   * @param windowHours Durée de la fenêtre en heures (par défaut : 24 h).
-   */
-  async getIncidentsByHour(
-    windowHours = 24,
-  ): Promise<Array<{ hour: string; count: number }>> {
+  /* ------------------------------------------------------------------
+   *  Incidents par heure
+   * -----------------------------------------------------------------*/
+  async getIncidentsByHour(windowHours = 24) {
     const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
     const raw = await this.incidentRepository
       .createQueryBuilder('incident')
       .select(
-        "to_char(date_trunc('hour', incident.createdAt), 'HH24:00')",
+        "to_char(date_trunc('hour', incident.\"createdAt\"), 'HH24:00')",
         'hour',
       )
       .addSelect('COUNT(incident.id)', 'count')
-      .where('incident.createdAt >= :since', { since })
-      .groupBy("date_trunc('hour', incident.createdAt)")
-      .orderBy("date_trunc('hour', incident.createdAt)")
+      .where('incident."createdAt" >= :since', { since })
+      .groupBy('date_trunc(\'hour\', incident."createdAt")')
+      .orderBy('date_trunc(\'hour\', incident."createdAt")')
       .getRawMany();
 
-    return raw.map((r) => ({
-      hour: r.hour,
-      count: Number(r.count),
-    }));
+    return raw.map((r) => ({ hour: r.hour, count: Number(r.count) }));
   }
 }
