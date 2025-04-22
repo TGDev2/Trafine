@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import MapView from "./MapView";
 import RouteCalculator from "./RouteCalculator";
 import { io } from "socket.io-client";
@@ -13,6 +14,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [voteLoadingId, setVoteLoadingId] = useState(null);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
   const { token, refreshToken, logout, refreshSession } = useAuth();
   const socketRef = useRef(null);
 
@@ -123,10 +125,18 @@ const Dashboard = () => {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
+
   if (loading) return <p>Chargement…</p>;
 
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <button onClick={handleLogout}>Se déconnecter</button>
+      </div>
       <h2>Interface de Gestion Trafine</h2>
       {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
 

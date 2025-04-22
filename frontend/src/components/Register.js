@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-export default function Login() {
+export default function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -10,18 +10,21 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     try {
-      const res = await fetch("http://localhost:3000/auth/login", {
+      const res = await fetch("http://localhost:3000/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (!res.ok)
-        throw new Error("Nom d’utilisateur ou mot de passe invalide");
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || "Échec de l’inscription");
+      }
       const { access_token, refresh_token } = await res.json();
       login(access_token, refresh_token);
       navigate("/", { replace: true });
@@ -32,16 +35,12 @@ export default function Login() {
     }
   };
 
-  const handleOAuth = (provider) => {
-    window.location.href = `http://localhost:3000/auth/${provider}`;
-  };
-
   return (
     <div style={{ margin: "0 auto", maxWidth: 400, padding: 20 }}>
-      <h2>Connexion</h2>
+      <h2>Créer un compte</h2>
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-      <form onSubmit={handleLogin}>
+      <form onSubmit={handleRegister}>
         <label>Nom d’utilisateur :</label>
         <input
           type="text"
@@ -61,21 +60,13 @@ export default function Login() {
         />
 
         <button type="submit" disabled={loading} style={{ width: "100%" }}>
-          {loading ? "Connexion…" : "Se connecter"}
+          {loading ? "Création…" : "S’inscrire"}
         </button>
       </form>
 
-      <p style={{ margin: "15px 0" }}>
-        Nouveau ? <Link to="/register">Créer un compte</Link>
+      <p style={{ marginTop: 15 }}>
+        Déjà inscrit ? <Link to="/login">Retour à la connexion</Link>
       </p>
-
-      <hr />
-
-      <p style={{ textAlign: "center" }}>Ou continuer avec</p>
-      <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-        <button onClick={() => handleOAuth("google")}>Google</button>
-        <button onClick={() => handleOAuth("facebook")}>Facebook</button>
-      </div>
     </div>
   );
 }
