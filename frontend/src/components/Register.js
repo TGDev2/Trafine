@@ -2,6 +2,13 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
 export default function Register() {
+  const handleOAuth = (provider) => {
+    window.location.href = `${
+      process.env.REACT_APP_API_URL || "http://localhost:3000"
+    }/auth/${provider}?redirect_uri=${encodeURIComponent(
+      window.location.origin
+    )}`;
+  };
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -64,6 +71,25 @@ export default function Register() {
       <p style={{ marginTop: 15 }}>
         Déjà inscrit ? <Link to="/login">Retour à la connexion</Link>
       </p>
+
+      <hr style={{ margin: "20px 0" }} />
+      <p style={{ textAlign: "center" }}>Ou s’inscrire avec</p>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+        <button
+          type="button"
+          onClick={() => handleOAuth("google")}
+          style={{ padding: "8px 16px" }}
+        >
+          Google
+        </button>
+        <button
+          type="button"
+          onClick={() => handleOAuth("facebook")}
+          style={{ padding: "8px 16px" }}
+        >
+          Facebook
+        </button>
+      </div>
     </div>
   );
 }
