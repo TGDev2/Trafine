@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { NavigationController } from './navigation.controller';
 import { NavigationService } from './navigation.service';
 import { IncidentModule } from '../incident/incident.module';
-import { OsrmRouteCalculationStrategy } from './osrm-route-calculation.strategy';
+import { OrsRouteCalculationStrategy } from './ors-route-calculation.strategy';
 import { RouteCalculationStrategyImpl } from './route-calculation.strategy';
 
 const RouteStrategyProvider = {
@@ -10,7 +10,7 @@ const RouteStrategyProvider = {
   useClass:
     process.env.NODE_ENV === 'test'
       ? RouteCalculationStrategyImpl
-      : OsrmRouteCalculationStrategy,
+      : OrsRouteCalculationStrategy,
 };
 
 @Module({

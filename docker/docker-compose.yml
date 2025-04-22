@@ -1,24 +1,4 @@
 services:
-  osrm:
-    build:
-      context: ../osrm
-      dockerfile: Dockerfile
-    container_name: trafine-osrm
-    ports:
-      - "5000:5000"
-    volumes:
-      - osrm_data:/data
-    networks:
-      - trafine-net
-    environment:
-      - OSRM_ALGORITHM=mld
-      - OSRM_MAX_TABLE_SIZE=10000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/route/v1/driving/2.3522,48.8566?steps=true"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   postgres:
     image: postgis/postgis:13-3.1-alpine
     container_name: trafine-postgres
@@ -42,7 +22,6 @@ services:
       - "3000:3000"
     depends_on:
       - postgres
-      - osrm
     networks:
       - trafine-net
 
