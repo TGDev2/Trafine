@@ -1,13 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
 
 export default function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
@@ -25,9 +23,8 @@ export default function Register() {
         const msg = await res.text();
         throw new Error(msg || "Échec de l’inscription");
       }
-      const { access_token, refresh_token } = await res.json();
-      login(access_token, refresh_token);
-      navigate("/", { replace: true });
+      navigate("/login", { replace: true });
+      alert("Inscription réussie ! Veuillez vous connecter.");
     } catch (err) {
       setError(err.message);
     } finally {
