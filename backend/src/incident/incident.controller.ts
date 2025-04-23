@@ -19,6 +19,8 @@ import { RolesGuard } from '../auth/roles.guard';
 import { CreateIncidentDto } from './create-incident.dto';
 import { IncidentResponseDto } from './dto/incident-response.dto';
 import { Incident } from './incident.entity';
+import { UpdateIncidentDto } from './update-incident.dto';
+import { Delete } from '@nestjs/common';
 
 type IncidentStatus = 'active' | 'expired' | 'archived' | 'all';
 
@@ -50,6 +52,25 @@ export class IncidentController {
   ): Promise<IncidentResponseDto> {
     const incident = await this.incidentService.createIncident(dto);
     return this.toDto(incident);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('moderator', 'admin')
+  @Patch(':id')
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateIncidentDto,
+  ): Promise<IncidentResponseDto> {
+    const incident = await this.incidentService.updateIncident(id, dto);
+    return this.toDto(incident);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    await this.incidentService.deleteIncident(id);
+    return { ok: true };
   }
 
   @Get()

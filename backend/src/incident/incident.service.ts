@@ -9,6 +9,7 @@ import { Incident } from './incident.entity';
 import { AlertsGateway } from '../alerts/alerts.gateway';
 import { CreateIncidentDto } from './create-incident.dto';
 import { IncidentVote, VoteType } from './incident-vote.entity';
+import { UpdateIncidentDto } from './update-incident.dto';
 import { Cron } from '@nestjs/schedule';
 
 const INCIDENT_VALIDITY_DURATION = 4 * 60 * 60 * 1000; // 4 h en ms
@@ -66,6 +67,40 @@ export class IncidentService {
     const savedIncident = await this.incidentRepository.save(incident);
     this.alertsGateway.broadcastIncidentAlert(savedIncident);
     return savedIncident;
+  }
+  
+  /* ----------  Mise à jour  ---------- */
+  async updateIncident(
+    incidentId: number,
+    dto: UpdateIncidentDto,
+  ): Promise<Incident> {
+    const incident = await this.incidentRepository.findOneBy({
+      id: incidentId,
+    });
+    if (!incident)
+      throw new NotFoundException(`Incident ${incidentId} introuvable`);
+
+    if (dto.type) incident.type = dto.type;
+    if (dto.description !== undefined) incident.description = dto.description;
+    if (dto.latitude !== undefined && dto.longitude !== undefined) {
+      incident.location = {
+        type: 'Point',
+        coordinates: [dto.longitude, dto.latitude],
+      };
+    }
+
+    const saved = await this.incidentRepository.save(incident);
+    // diffusion temps-réel
+    this.alertsGateway.broadcastIncidentAlert(saved);
+    return saved;
+  }
+
+  /* ----------  Suppression définitive  ---------- */
+  async deleteIncident(incidentId: number): Promise<void> {
+    const result = await this.incidentRepository.delete({ id: incidentId });
+    if (!result.affected) {
+      throw new NotFoundException(`Incident ${incidentId} introuvable`);
+    }
   }
 
   /**
