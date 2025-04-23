@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Indiquer le port d’écoute
-EXPOSE 3000
+EXPOSE 3000 3443
 
 # Lancer l’application
 CMD ["npm", "run", "start:prod"]

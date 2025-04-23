@@ -11,10 +11,42 @@ import * as cookieParser from 'cookie-parser';
 import * as csurf from 'csurf';
 import { Request, Response, NextFunction } from 'express';
 import { CsrfExceptionFilter } from './common/filters/csrf-exception.filter';
+import * as fs from 'fs'; //  ⬅️  import ajouté
+import * as path from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  /* ------------------------------------------------------------------
+   *  Détermination (optionnelle) du TLS
+   * -----------------------------------------------------------------*/
+  const cfg = new ConfigService();
+  const keyPath = cfg.get<string>('TLS_KEY_FILE');
+  const certPath = cfg.get<string>('TLS_CERT_FILE');
+  const httpsOptions =
+    process.env.NODE_ENV === 'production'
+      ? (() => {
+          if (!keyPath || !certPath)
+            throw new Error(
+              'TLS_KEY_FILE et TLS_CERT_FILE doivent être définis en production.',
+            );
+          const resolvedKey = path.resolve(keyPath);
+          const resolvedCert = path.resolve(certPath);
+          if (!fs.existsSync(resolvedKey) || !fs.existsSync(resolvedCert))
+            throw new Error(
+              `Fichiers TLS introuvables : ${resolvedKey} / ${resolvedCert}`,
+            );
+          return {
+            key: fs.readFileSync(resolvedKey),
+            cert: fs.readFileSync(resolvedCert),
+          };
+        })()
+      : undefined;
 
+  const app = await NestFactory.create(
+    AppModule,
+    httpsOptions ? { httpsOptions } : {},
+  );
+
+  /* --------------------------- CORS --------------------------- */
   const configService = app.get(ConfigService);
   const allowedOrigins = configService
     .get<string>('ALLOWED_WEB_ORIGINS')!
@@ -50,7 +82,6 @@ async function bootstrap() {
       ignoreMethods: ['GET', 'HEAD', 'OPTIONS'],
     });
 
-    // Applique la protection sauf pour les routes d’auth ou les requêtes sans cookie (ex. mobile)
     app.use((req: Request, res: Response, next: NextFunction) => {
       const isAuthRoute = req.path.startsWith('/auth');
       const hasCsrfCookie = req.headers.cookie?.includes('XSRF-TOKEN');
@@ -59,7 +90,6 @@ async function bootstrap() {
     });
   }
 
-  // Publie le token CSRF dans un cookie accessible au front
   app.use((req: Request, res: Response, next: NextFunction) => {
     const tokenFn = (req as any).csrfToken as (() => string) | undefined;
     if (tokenFn) {
@@ -92,7 +122,12 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+  /* ---------------- Lancement ---------------- */
+  const PORT = Number(process.env.PORT ?? (httpsOptions ? 3443 : 3000));
+  await app.listen(PORT, '0.0.0.0');
+  console.log(
+    `✅  Backend lancé en ${httpsOptions ? 'HTTPS' : 'HTTP'} sur le port ${PORT}`,
+  );
 }
 
 bootstrap();

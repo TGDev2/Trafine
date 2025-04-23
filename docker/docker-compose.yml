@@ -20,7 +20,8 @@ services:
     env_file:
       - ../backend/.env
     ports:
-      - "3000:3000"
+      - "3000:3000"   # HTTP (dev)
+      - "3443:3443"   # HTTPS (prod)
     depends_on:
       - postgres
     networks:
