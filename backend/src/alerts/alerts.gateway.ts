@@ -17,11 +17,7 @@ interface RouteSubscription {
   threshold: number;
 }
 
-@WebSocketGateway({
-  cors: {
-    origin: process.env.NODE_ENV === 'production' ? false : '*',
-  },
-})
+@WebSocketGateway()
 @UseGuards(JwtWsGuard)
 export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -30,12 +26,24 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly subscriptions = new Map<string, RouteSubscription>();
 
   handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+    // Applique la même whitelist CORS que le REST
+    const allowed =
+      process.env.ALLOWED_WEB_ORIGINS?.split(',').map((u) => u.trim()) || [];
+    const origin = client.handshake.headers.origin;
+    if (
+      process.env.NODE_ENV === 'production' &&
+      origin &&
+      !allowed.includes(origin)
+    ) {
+      client.disconnect(true);
+      return;
+    }
+    console.log(`Client connecté: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
     this.subscriptions.delete(client.id);
-    console.log(`Client disconnected: ${client.id}`);
+    console.log(`Client déconnecté: ${client.id}`);
   }
 
   /**
@@ -48,7 +56,6 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     payload: { geometry: Feature<LineString>; threshold?: number },
   ) {
     try {
-      // Vérifier que la géométrie est bien un LineString
       if (
         !payload.geometry ||
         payload.geometry.geometry.type !== 'LineString'

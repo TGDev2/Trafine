@@ -11,13 +11,13 @@ function randomHex(bytes: number): string {
 }
 
 /**
- * Valeurs par défaut uniquement pour les environnements non‑prod.
- *  - Clés à 32 octets pour AES‑256 / JWT
- *  - Identifiants OAuth factices (les vrais seront fournis en production)
+ * Valeurs par défaut uniquement pour les environnements non-prod.
+ *  - Clés à 32 octets pour AES-256 / JWT
+ *  - Identifiants OAuth factices (les vrais seront fournis en production)
  */
 const DEV_DEFAULTS = {
-  ENCRYPTION_KEY: randomHex(16), // 32 caractères
-  JWT_SECRET: randomHex(32), // 64 caractères
+  ENCRYPTION_KEY: randomHex(16), // 32 caractères
+  JWT_SECRET: randomHex(32), // 64 caractères
   GOOGLE_CLIENT_ID: 'dummy-google-id',
   GOOGLE_CLIENT_SECRET: 'dummy-google-secret',
   GOOGLE_CALLBACK_URL: 'http://localhost:3000/auth/google/callback',
@@ -25,6 +25,8 @@ const DEV_DEFAULTS = {
   FACEBOOK_CLIENT_SECRET: 'dummy-facebook-secret',
   FACEBOOK_CALLBACK_URL: 'http://localhost:3000/auth/facebook/callback',
   ALLOWED_REDIRECT_URLS: 'http://localhost:3001,myapp://redirect',
+  // Origines front/dev autorisées par défaut
+  ALLOWED_WEB_ORIGINS: 'http://localhost:3001,http://localhost:19006',
 };
 
 @Module({
@@ -33,11 +35,6 @@ const DEV_DEFAULTS = {
       isGlobal: true,
       envFilePath: '.env',
       expandVariables: true,
-      /**
-       * Avant validation, injecte les valeurs par défaut si l’on n’est
-       * ni en production ni en test (les tests disposent déjà d’une
-       * clé fixée pour la reproductibilité).
-       */
       load: [
         () => {
           if (
@@ -62,7 +59,6 @@ const DEV_DEFAULTS = {
         POSTGRES_PASSWORD: Joi.string().default('postgres'),
         POSTGRES_DB: Joi.string().default('trafine'),
 
-        /* --------  JWT & chiffrement  -------- */
         JWT_SECRET: Joi.when('NODE_ENV', {
           is: 'production',
           then: Joi.string().required(),
@@ -79,7 +75,6 @@ const DEV_DEFAULTS = {
             .default(DEV_DEFAULTS.ENCRYPTION_KEY),
         }),
 
-        /* --------  OAuth -------- */
         GOOGLE_CLIENT_ID: Joi.when('NODE_ENV', {
           is: 'production',
           then: Joi.string().required(),
@@ -108,14 +103,20 @@ const DEV_DEFAULTS = {
           .uri()
           .default(DEV_DEFAULTS.FACEBOOK_CALLBACK_URL),
 
-        /* --------  Compte admin initial  -------- */
         ADMIN_USERNAME: Joi.string().default('admin'),
         ADMIN_PASSWORD: Joi.string().min(4).default('admin'),
 
-        /* --------  Divers  -------- */
         ALLOWED_REDIRECT_URLS: Joi.string().default(
           DEV_DEFAULTS.ALLOWED_REDIRECT_URLS,
         ),
+
+        // CORS : liste d’origines autorisées pour le web/frontend
+        ALLOWED_WEB_ORIGINS: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().default(DEV_DEFAULTS.ALLOWED_WEB_ORIGINS),
+        }),
+
         OSRM_BASE_URL: Joi.string().uri().default('http://osrm:5000'),
       }),
     }),
