@@ -37,9 +37,9 @@ async function bootstrap() {
   app.use(helmet());
   app.use(cookieParser());
 
-  // Protection CSRF : cookie httpOnly + header « X-CSRF-Token » attendu
-  /*app.use(
-    csurf({
+  /* ----------- CSRF protection ----------- */
+  if (process.env.NODE_ENV !== 'test') {
+    const csrfMw = csurf({
       cookie: {
         key: 'XSRF-TOKEN',
         httpOnly: true,
@@ -48,12 +48,19 @@ async function bootstrap() {
         path: '/',
       },
       ignoreMethods: ['GET', 'HEAD', 'OPTIONS'],
-    }),
-  );*/
+    });
 
-  // Publie le token CSRF dans un cookie non httpOnly pour que le client puisse le relire
+    // Applique la protection sauf pour les routes d’auth ou les requêtes sans cookie (ex. mobile)
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      const isAuthRoute = req.path.startsWith('/auth');
+      const hasCsrfCookie = req.headers.cookie?.includes('XSRF-TOKEN');
+      if (isAuthRoute || !hasCsrfCookie) return next();
+      return csrfMw(req, res, next);
+    });
+  }
+
+  // Publie le token CSRF dans un cookie accessible au front
   app.use((req: Request, res: Response, next: NextFunction) => {
-    // csrfToken() est injecté par csurf
     const tokenFn = (req as any).csrfToken as (() => string) | undefined;
     if (tokenFn) {
       res.cookie('XSRF-TOKEN', tokenFn(), {
@@ -73,10 +80,7 @@ async function bootstrap() {
     }),
     new SanitizationPipe(),
   );
-  app.useGlobalFilters(
-    new AllExceptionsFilter(),
-    new CsrfExceptionFilter(), // <-- nouveau filtre
-  );
+  app.useGlobalFilters(new AllExceptionsFilter(), new CsrfExceptionFilter());
 
   /* ---------------- Swagger ---------------- */
   const swaggerConfig = new DocumentBuilder()
