@@ -10,6 +10,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  /* ---------------- Connexion locale ---------------- */
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -32,8 +33,12 @@ export default function Login() {
     }
   };
 
+  /* ---------------- OAuth2 ---------------- */
   const handleOAuth = (provider) => {
-    window.location.href = `http://localhost:3000/auth/${provider}`;
+    const redirectUri = window.location.origin; // http://localhost:3001 en dev
+    window.location.href = `http://localhost:3000/auth/${provider}?redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}`;
   };
 
   return (
@@ -42,7 +47,7 @@ export default function Login() {
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       <form onSubmit={handleLogin}>
-        <label>Nom d’utilisateur :</label>
+        <label>Nom d’utilisateur :</label>
         <input
           type="text"
           value={username}
@@ -51,7 +56,7 @@ export default function Login() {
           style={{ width: "100%", padding: 8, marginBottom: 10 }}
         />
 
-        <label>Mot de passe :</label>
+        <label>Mot de passe :</label>
         <input
           type="password"
           value={password}
@@ -66,7 +71,7 @@ export default function Login() {
       </form>
 
       <p style={{ margin: "15px 0" }}>
-        Nouveau ? <Link to="/register">Créer un compte</Link>
+        Nouveau ? <Link to="/register">Créer un compte</Link>
       </p>
 
       <hr />

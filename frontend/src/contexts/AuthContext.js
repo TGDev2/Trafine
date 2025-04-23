@@ -24,21 +24,42 @@ const storage = {
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  /* ----------  état persistant ---------- */
   const [token, setToken] = useState(storage.get("token"));
   const [refreshToken, setRefreshToken] = useState(storage.get("refreshToken"));
   const [role, setRole] = useState(parseJwt(storage.get("token")).role);
 
-  /* persistance */
   useEffect(() => storage.set("token", token), [token]);
   useEffect(() => storage.set("refreshToken", refreshToken), [refreshToken]);
 
-  /* helpers */
+  /* ------------------------------------------------------------------
+   *  Nouveau : capture des tokens présents dans l’URL après l’OAuth
+   * -----------------------------------------------------------------*/
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get("token");
+    const urlRefresh = params.get("refreshToken");
+    if (urlToken) {
+      applyToken(urlToken, urlRefresh);
+      // Nettoie l’URL pour éviter d’exposer les tokens dans l’historique
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + window.location.hash
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ----------  helpers ---------- */
   const applyToken = (tok, ref) => {
     setToken(tok);
     setRefreshToken(ref);
     setRole(parseJwt(tok).role);
   };
   const login = applyToken;
+
   const logout = async () => {
     if (token)
       await fetch("http://localhost:3000/auth/logout", {
@@ -49,6 +70,7 @@ export const AuthProvider = ({ children }) => {
     setRefreshToken(null);
     setRole(null);
   };
+
   const refreshSession = async () => {
     const res = await fetch("http://localhost:3000/auth/refresh", {
       method: "POST",
