@@ -1,15 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 /* ----------------  Helpers ---------------- */
-const parseJwt = (token) => {
-  if (!token) return {};
-  try {
-    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(base64));
-  } catch {
-    return {};
-  }
-};
 const storage = {
   get: (k) => (typeof window !== "undefined" ? localStorage.getItem(k) : null),
   set: (k, v) =>
@@ -20,52 +11,77 @@ const storage = {
       : undefined,
 };
 
+function parseJwt(token) {
+  if (!token) return {};
+  try {
+    const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(b64));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Lit les tokens éventuels dans l’URL (callback OAuth)
+ */
+function getTokensFromUrl() {
+  if (typeof window === "undefined")
+    return { initialToken: null, initialRefresh: null };
+  const params = new URLSearchParams(window.location.search);
+  return {
+    initialToken: params.get("token"),
+    initialRefresh: params.get("refreshToken"),
+  };
+}
+
 /* ----------------  Contexte ---------------- */
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
-  /* ----------  état persistant ---------- */
-  const [token, setToken] = useState(storage.get("token"));
-  const [refreshToken, setRefreshToken] = useState(storage.get("refreshToken"));
-  const [role, setRole] = useState(parseJwt(storage.get("token")).role);
+export function AuthProvider({ children }) {
+  const { initialToken, initialRefresh } = getTokensFromUrl();
 
-  useEffect(() => storage.set("token", token), [token]);
-  useEffect(() => storage.set("refreshToken", refreshToken), [refreshToken]);
+  // Initialisation synchrones du state à partir de l’URL ou du localStorage
+  const [token, setToken] = useState(initialToken || storage.get("token"));
+  const [refreshToken, setRefreshToken] = useState(
+    initialRefresh || storage.get("refreshToken")
+  );
+  const [role, setRole] = useState(
+    parseJwt(initialToken || storage.get("token")).role
+  );
 
-  /* ------------------------------------------------------------------
-   *  Nouveau : capture des tokens présents dans l’URL après l’OAuth
-   * -----------------------------------------------------------------*/
+  // Persistance automatique dans le localStorage
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get("token");
-    const urlRefresh = params.get("refreshToken");
-    if (urlToken) {
-      applyToken(urlToken, urlRefresh);
-      // Nettoie l’URL pour éviter d’exposer les tokens dans l’historique
-      window.history.replaceState(
-        {},
-        "",
-        window.location.pathname + window.location.hash
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (token) storage.set("token", token);
+    else storage.set("token", null);
+  }, [token]);
+  useEffect(() => {
+    if (refreshToken) storage.set("refreshToken", refreshToken);
+    else storage.set("refreshToken", null);
+  }, [refreshToken]);
 
-  /* ----------  helpers ---------- */
-  const applyToken = (tok, ref) => {
-    setToken(tok);
-    setRefreshToken(ref);
-    setRole(parseJwt(tok).role);
+  // Nettoyage de l’URL (on enlève les ?token=…&refreshToken=…)
+  useEffect(() => {
+    if (initialToken && initialRefresh && typeof window !== "undefined") {
+      const clean = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, clean);
+    }
+  }, [initialToken, initialRefresh]);
+
+  /* ----------  Fonctions de gestion du token ---------- */
+  const applyToken = (newToken, newRefresh) => {
+    setToken(newToken);
+    setRefreshToken(newRefresh);
+    setRole(parseJwt(newToken).role);
   };
   const login = applyToken;
 
   const logout = async () => {
-    if (token)
+    if (token) {
       await fetch("http://localhost:3000/auth/logout", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {});
+    }
     setToken(null);
     setRefreshToken(null);
     setRole(null);
@@ -100,5 +116,6 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
+
 export const useAuth = () => useContext(AuthContext);
