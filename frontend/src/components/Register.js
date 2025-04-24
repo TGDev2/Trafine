@@ -86,7 +86,7 @@ export default function Register() {
         </button>
         <button
           type="button"
-          onClick={() => handleOAuth("facebook")}
+          onClick={() => handleOAuth("twitter")}
           style={{ padding: "8px 16px" }}
         >
           Twitter
