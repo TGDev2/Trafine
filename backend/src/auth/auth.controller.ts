@@ -67,17 +67,15 @@ export class AuthController {
     );
   }
 
-  /* ----------  OAuth Facebook ---------- */
-  @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
-  async facebookAuth(): Promise<void> {}
+  /* ----------  OAuth Twitter ---------- */
 
-  @Get('facebook/callback')
-  @UseGuards(AuthGuard('facebook'))
-  async facebookCallback(
-    @Req() req: AuthenticatedRequest,
-    @Res() res: Response,
-  ) {
+  @Get('twitter')
+  @UseGuards(AuthGuard('twitter'))
+  async twitterAuth(): Promise<void> {}
+
+  @Get('twitter/callback')
+  @UseGuards(AuthGuard('twitter'))
+  async twitterCallback(@Req() req: AuthenticatedRequest, @Res() res: Response) {
     const tokens = await this.authService.login(req.user);
     const redirectUri = this.resolveRedirectUri(
       (req.query.redirect_uri as string) || undefined,

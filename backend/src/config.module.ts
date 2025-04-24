@@ -21,9 +21,9 @@ const DEV_DEFAULTS = {
   GOOGLE_CLIENT_ID: 'dummy-google-id',
   GOOGLE_CLIENT_SECRET: 'dummy-google-secret',
   GOOGLE_CALLBACK_URL: 'http://localhost:3000/auth/google/callback',
-  FACEBOOK_CLIENT_ID: 'dummy-facebook-id',
-  FACEBOOK_CLIENT_SECRET: 'dummy-facebook-secret',
-  FACEBOOK_CALLBACK_URL: 'http://localhost:3000/auth/facebook/callback',
+  TWITTER_CONSUMER_KEY: 'dummy-twitter-key',
+  TWITTER_CONSUMER_SECRET: 'dummy-twitter-secret',
+  TWITTER_CALLBACK_URL: 'http://localhost:3000/auth/twitter/callback',
   ALLOWED_REDIRECT_URLS: 'http://localhost:3001,myapp://redirect',
   // Origines front/dev autorisées par défaut
   ALLOWED_WEB_ORIGINS: 'http://localhost:3001,http://localhost:19006',
@@ -89,19 +89,19 @@ const DEV_DEFAULTS = {
           .uri()
           .default(DEV_DEFAULTS.GOOGLE_CALLBACK_URL),
 
-        FACEBOOK_CLIENT_ID: Joi.when('NODE_ENV', {
+        TWITTER_CONSUMER_KEY: Joi.when('NODE_ENV', {
           is: 'production',
           then: Joi.string().required(),
-          otherwise: Joi.string().default(DEV_DEFAULTS.FACEBOOK_CLIENT_ID),
+          otherwise: Joi.string().default(DEV_DEFAULTS.TWITTER_CONSUMER_KEY),
         }),
-        FACEBOOK_CLIENT_SECRET: Joi.when('NODE_ENV', {
+        TWITTER_CONSUMER_SECRET: Joi.when('NODE_ENV', {
           is: 'production',
           then: Joi.string().required(),
-          otherwise: Joi.string().default(DEV_DEFAULTS.FACEBOOK_CLIENT_SECRET),
+          otherwise: Joi.string().default(DEV_DEFAULTS.TWITTER_CONSUMER_SECRET),
         }),
-        FACEBOOK_CALLBACK_URL: Joi.string()
+        TWITTER_CALLBACK_URL: Joi.string()
           .uri()
-          .default(DEV_DEFAULTS.FACEBOOK_CALLBACK_URL),
+          .default(DEV_DEFAULTS.TWITTER_CALLBACK_URL),
 
         ADMIN_USERNAME: Joi.string().default('admin'),
         ADMIN_PASSWORD: Joi.string().min(4).default('admin'),

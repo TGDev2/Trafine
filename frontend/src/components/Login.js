@@ -35,10 +35,12 @@ export default function Login() {
 
   /* ---------------- OAuth2 ---------------- */
   const handleOAuth = (provider) => {
-    const redirectUri = window.location.origin; // http://localhost:3001 en dev
-    window.location.href = `http://localhost:3000/auth/${provider}?redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}`;
+    const base = `http://localhost:3000/auth/${provider}`;
+    const url =
+      provider === "twitter"
+        ? base
+        : `${base}?redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    window.location.href = url;
   };
 
   return (
@@ -70,16 +72,14 @@ export default function Login() {
         </button>
       </form>
 
-      <p style={{ margin: "15px 0" }}>
+      <p style={{ marginTop: 15 }}>
         Nouveau ? <Link to="/register">Créer un compte</Link>
       </p>
 
-      <hr />
-
-      <p style={{ textAlign: "center" }}>Ou continuer avec</p>
+      <p style={{ textAlign: "center", margin: "15px 0" }}>Ou continuer avec</p>
       <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
         <button onClick={() => handleOAuth("google")}>Google</button>
-        <button onClick={() => handleOAuth("facebook")}>Facebook</button>
+        <button onClick={() => handleOAuth("twitter")}>Twitter</button>
       </div>
     </div>
   );

@@ -3,12 +3,14 @@ import { useNavigate, Link } from "react-router-dom";
 
 export default function Register() {
   const handleOAuth = (provider) => {
-    window.location.href = `${
-      process.env.REACT_APP_API_URL || "http://localhost:3000"
-    }/auth/${provider}?redirect_uri=${encodeURIComponent(
-      window.location.origin
-    )}`;
+    const base = `http://localhost:3000/auth/${provider}`;
+    const url =
+      provider === "twitter"
+        ? base
+        : `${base}?redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    window.location.href = url;
   };
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -87,7 +89,7 @@ export default function Register() {
           onClick={() => handleOAuth("facebook")}
           style={{ padding: "8px 16px" }}
         >
-          Facebook
+          Twitter
         </button>
       </div>
     </div>
