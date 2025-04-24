@@ -25,8 +25,8 @@ const DEV_DEFAULTS = {
   TWITTER_CONSUMER_SECRET: 'dummy-twitter-secret',
   TWITTER_CALLBACK_URL: 'http://localhost:3000/auth/twitter/callback',
   ALLOWED_REDIRECT_URLS: 'http://localhost:3001,myapp://redirect',
-  // Origines front/dev autorisées par défaut
   ALLOWED_WEB_ORIGINS: 'http://localhost:3001,http://localhost:19006',
+  ORS_BASE_URL: 'https://api.openrouteservice.org',
 };
 
 @Module({
@@ -117,7 +117,9 @@ const DEV_DEFAULTS = {
           otherwise: Joi.string().default(DEV_DEFAULTS.ALLOWED_WEB_ORIGINS),
         }),
 
-        OSRM_BASE_URL: Joi.string().uri().default('http://osrm:5000'),
+        ORS_BASE_URL: Joi.string()
+          .uri()
+          .default('https://api.openrouteservice.org'),
       }),
     }),
   ],

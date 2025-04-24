@@ -1,24 +1,26 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import axios from 'axios';
 import {
   RouteCalculationStrategy,
   RouteResult,
 } from './route-calculation.strategy';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import axios from 'axios';
 
 interface OrsStep {
   instruction: string;
 }
-
 interface OrsSegment {
   steps: OrsStep[];
-  distance: number; // m
-  duration: number; // s
+  distance: number; // m
+  duration: number; // s
 }
 
 @Injectable()
 export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
+  /** Base URL d’ORS (configurable). */
   private readonly baseUrl =
-    process.env.ORS_BASE_URL;
+    process.env.ORS_BASE_URL || 'https://api.openrouteservice.org';
+
+  /** Clé API ORS (obligatoire). */
   private readonly apiKey = process.env.ORS_API_KEY ?? '';
 
   private parseCoords(str: string) {
@@ -29,15 +31,19 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
     );
   }
 
+  /** ------------------------------------------------------------------
+   *  Calcul d’itinéraire avec alternatives (OpenRouteService)
+   * -----------------------------------------------------------------*/
   async calculateRoute(
     source: string,
     destination: string,
     opts?: { avoidTolls?: boolean },
   ): Promise<{ routes: RouteResult[] }> {
-    if (!this.apiKey)
+    if (!this.apiKey) {
       throw new Error(
         'ORS_API_KEY manquante. Obtenez une clé gratuite sur https://openrouteservice.org',
       );
+    }
 
     const s = this.parseCoords(source);
     const d = this.parseCoords(destination);
@@ -50,6 +56,12 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
       instructions: true,
       geometry: true,
       preference: 'recommended',
+      // ➕ itinéraires alternatifs (jusqu’à 3)
+      alternative_routes: {
+        target_count: 3,
+        share_factor: 0.6,
+        weight_factor: 1.6,
+      },
       ...(opts?.avoidTolls
         ? { options: { avoid_features: ['tollways'] } }
         : {}),
@@ -67,10 +79,13 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
         },
       );
 
-      const feat = data.features as any[];
-      if (!feat?.length) throw new Error('Réponse ORS invalide');
+      const features = data.features as any[];
+      if (!features?.length) {
+        throw new Error('Réponse ORS invalide ou vide');
+      }
 
-      const routes: RouteResult[] = feat.map((f) => {
+      // Chaque feature représente une alternative
+      const routes: RouteResult[] = features.map((f, idx) => {
         const seg: OrsSegment = f.properties.segments[0];
         return {
           source,
@@ -79,15 +94,15 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
           duration: `${Math.round(seg.duration / 60)} minutes`,
           instructions: seg.steps.map((s) => s.instruction),
           avoidTolls: opts?.avoidTolls ?? false,
-          recalculated: false,
-          geometry: f.geometry, // GeoJSON LineString
+          recalculated: idx > 0, // la première est l’optimale
+          geometry: f.geometry, // GeoJSON LineString
         };
       });
 
       return { routes };
     } catch (err: any) {
       throw new InternalServerErrorException(
-        `OpenRouteService error: ${err.response?.data?.error || err.message}`,
+        `OpenRouteService error : ${err.response?.data?.error || err.message}`,
       );
     }
   }
