@@ -1,80 +1,93 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-/** ------------------------------------------------------------------
- *  Helpers de persistance locale
- *  ----------------------------------------------------------------- */
-function readFromStorage(key) {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(key);
-}
-function writeToStorage(key, value) {
-  if (typeof window === "undefined") return;
-  if (value) localStorage.setItem(key, value);
-  else localStorage.removeItem(key);
-}
+/* ----------------  Helpers ---------------- */
+const storage = {
+  get: (k) => (typeof window !== "undefined" ? localStorage.getItem(k) : null),
+  set: (k, v) =>
+    typeof window !== "undefined"
+      ? v
+        ? localStorage.setItem(k, v)
+        : localStorage.removeItem(k)
+      : undefined,
+};
 
-/** ------------------------------------------------------------------
- *  Bootstrap : récupère les jetons éventuellement renvoyés par OAuth
- *  ----------------------------------------------------------------- */
-function bootstrapAuth() {
-  if (typeof window === "undefined") return { token: null, refresh: null };
-
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get("token");
-  const refresh = params.get("refreshToken");
-
-  if (token) writeToStorage("token", token);
-  if (refresh) writeToStorage("refreshToken", refresh);
-
-  if (token || refresh) {
-    params.delete("token");
-    params.delete("refreshToken");
-    window.history.replaceState({}, "", window.location.pathname);
+function parseJwt(token) {
+  if (!token) return {};
+  try {
+    const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(b64));
+  } catch {
+    return {};
   }
+}
+
+/**
+ * Lit les tokens éventuels dans l’URL (callback OAuth)
+ */
+function getTokensFromUrl() {
+  if (typeof window === "undefined")
+    return { initialToken: null, initialRefresh: null };
+  const params = new URLSearchParams(window.location.search);
   return {
-    token: readFromStorage("token"),
-    refresh: readFromStorage("refreshToken"),
+    initialToken: params.get("token"),
+    initialRefresh: params.get("refreshToken"),
   };
 }
 
-/** ------------------------------------------------------------------
- *  Contexte
- *  ----------------------------------------------------------------- */
+/* ----------------  Contexte ---------------- */
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
-  const init = bootstrapAuth();
-  const [token, setToken] = useState(init.token);
-  const [refreshToken, setRefreshToken] = useState(init.refresh);
+export function AuthProvider({ children }) {
+  const { initialToken, initialRefresh } = getTokensFromUrl();
 
-  /* --------  Effets de persistance -------- */
-  useEffect(() => writeToStorage("token", token), [token]);
-  useEffect(() => writeToStorage("refreshToken", refreshToken), [refreshToken]);
+  // Initialisation synchrones du state à partir de l’URL ou du localStorage
+  const [token, setToken] = useState(initialToken || storage.get("token"));
+  const [refreshToken, setRefreshToken] = useState(
+    initialRefresh || storage.get("refreshToken")
+  );
+  const [role, setRole] = useState(
+    parseJwt(initialToken || storage.get("token")).role
+  );
 
-  /* --------  Login / Logout / Refresh -------- */
-  const login = (newToken, newRefresh) => {
+  // Persistance automatique dans le localStorage
+  useEffect(() => {
+    if (token) storage.set("token", token);
+    else storage.set("token", null);
+  }, [token]);
+  useEffect(() => {
+    if (refreshToken) storage.set("refreshToken", refreshToken);
+    else storage.set("refreshToken", null);
+  }, [refreshToken]);
+
+  // Nettoyage de l’URL (on enlève les ?token=…&refreshToken=…)
+  useEffect(() => {
+    if (initialToken && initialRefresh && typeof window !== "undefined") {
+      const clean = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, clean);
+    }
+  }, [initialToken, initialRefresh]);
+
+  /* ----------  Fonctions de gestion du token ---------- */
+  const applyToken = (newToken, newRefresh) => {
     setToken(newToken);
     setRefreshToken(newRefresh);
+    setRole(parseJwt(newToken).role);
   };
+  const login = applyToken;
 
   const logout = async () => {
-    // révocation côté serveur (best effort)
-    try {
-      if (token)
-        await fetch("http://localhost:3000/auth/logout", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-    } catch {
-      /* noop ‑ déconnexion locale malgré tout */
+    if (token) {
+      await fetch("http://localhost:3000/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
     }
     setToken(null);
     setRefreshToken(null);
+    setRole(null);
   };
 
-  /** Tente de rafraîchir la session ; throw si échec */
   const refreshSession = async () => {
-    if (!refreshToken) throw new Error("No refresh token");
     const res = await fetch("http://localhost:3000/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -82,7 +95,7 @@ export const AuthProvider = ({ children }) => {
     });
     if (!res.ok) throw new Error("Refresh failed");
     const { access_token, refresh_token } = await res.json();
-    login(access_token, refresh_token);
+    applyToken(access_token, refresh_token);
     return access_token;
   };
 
@@ -91,7 +104,10 @@ export const AuthProvider = ({ children }) => {
       value={{
         token,
         refreshToken,
+        role,
         isAuthenticated: Boolean(token),
+        isAdmin: role === "admin",
+        isModerator: role === "moderator" || role === "admin",
         login,
         logout,
         refreshSession,
@@ -100,10 +116,6 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-};
+export const useAuth = () => useContext(AuthContext);
