@@ -35,6 +35,7 @@ describe('Navigation API (e2e)', () => {
     expect(body).toHaveProperty('routes');
     expect(Array.isArray(body.routes)).toBe(true);
     expect(body.routes.length).toBeGreaterThanOrEqual(1);
+
     for (const route of body.routes) {
       expect(route).toHaveProperty('source', '48.8566, 2.3522');
       expect(route).toHaveProperty('destination', '45.7640, 4.8357');
@@ -42,6 +43,16 @@ describe('Navigation API (e2e)', () => {
       expect(route).toHaveProperty('duration');
       expect(route).toHaveProperty('instructions');
       expect(Array.isArray(route.instructions)).toBe(true);
+      expect(route).toHaveProperty('steps');
+      expect(Array.isArray(route.steps)).toBe(true);
+      // Vérifie qu’une étape contient bien ses données
+      const firstStep = route.steps[0];
+      expect(firstStep).toHaveProperty('instruction');
+      expect(firstStep).toHaveProperty('latitude');
+      expect(firstStep).toHaveProperty('longitude');
+      expect(firstStep).toHaveProperty('distance');
+      expect(firstStep).toHaveProperty('duration');
+
       expect(route).toHaveProperty('avoidTolls', true);
       expect(typeof route.recalculated).toBe('boolean');
     }

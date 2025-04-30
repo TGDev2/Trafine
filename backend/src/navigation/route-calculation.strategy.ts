@@ -2,17 +2,42 @@ import { Injectable } from '@nestjs/common';
 import { IncidentService } from '../incident/incident.service';
 import { Incident } from '../incident/incident.entity';
 
+/**
+ * Étape pour la navigation pas-à-pas.
+ */
+export interface RouteStep {
+  /** Phrase d’instruction au format humain (ex. « Tourner à gauche »). */
+  instruction: string;
+  /** Latitude de l’étape. */
+  latitude: number;
+  /** Longitude de l’étape. */
+  longitude: number;
+  /** Distance de l’étape en mètres. */
+  distance: number;
+  /** Durée estimée de l’étape en secondes. */
+  duration: number;
+}
+
+/**
+ * Résultat d’un calcul d’itinéraire.
+ */
 export interface RouteResult {
   source: string;
   destination: string;
   distance: string;
   duration: string;
+  /** Instructions textuelles (compatibilité ascendante) */
   instructions: string[];
+  /** Étapes géolocalisées pour turn-by-turn */
+  steps: RouteStep[];
   avoidTolls: boolean;
   recalculated: boolean;
   geometry?: any;
 }
 
+/**
+ * Interface générique de stratégie de calcul d’itinéraire.
+ */
 export interface RouteCalculationStrategy {
   calculateRoute(
     source: string,
@@ -22,10 +47,7 @@ export interface RouteCalculationStrategy {
 }
 
 /**
- * Implémentation d’une stratégie de calcul d’itinéraire.
- * Utilise la formule de Haversine pour calculer la distance de base
- * et applique une pénalité sur la distance et la durée pour chaque incident confirmé
- * situé à proximité de la trajectoire directe.
+ * Implémentation de secours (Haversine + pénalités incidents).
  */
 @Injectable()
 export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
@@ -55,7 +77,7 @@ export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
   }
 
   /**
-   * Calcule la distance en km entre deux points donnés en utilisant la formule de Haversine.
+   * Formule de Haversine pour la distance en km.
    */
   private haversineDistance(
     lat1: number,
@@ -64,7 +86,7 @@ export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
     lon2: number,
   ): number {
     const toRad = (value: number) => (value * Math.PI) / 180;
-    const R = 6371; // Rayon de la Terre en km
+    const R = 6371; // rayon Terre en km
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     const a =
@@ -75,8 +97,7 @@ export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
   }
 
   /**
-   * Calcule une distance approximative (en km) entre un point (lat, lon) et la ligne droite définie par deux points (lat1, lon1) et (lat2, lon2).
-   * On effectue ici une approximation en considérant une conversion moyenne de 1° ≈ 111 km.
+   * Distance point-ligne simplifiée (en km).
    */
   private pointToLineDistance(
     lat: number,
@@ -91,9 +112,9 @@ export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
     const P = { x: lon, y: lat };
     const ABx = B.x - A.x;
     const ABy = B.y - A.y;
-    const numerator = Math.abs(ABx * (A.y - P.y) - ABy * (A.x - P.x));
-    const denominator = Math.sqrt(ABx ** 2 + ABy ** 2);
-    return (numerator / denominator) * 111; // conversion approximative en km
+    const num = Math.abs(ABx * (A.y - P.y) - ABy * (A.x - P.x));
+    const den = Math.sqrt(ABx ** 2 + ABy ** 2);
+    return (num / den) * 111; // approx km
   }
 
   async calculateRoute(
@@ -101,140 +122,152 @@ export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
     destination: string,
     options?: { avoidTolls?: boolean },
   ): Promise<{ routes: RouteResult[] }> {
-    const sourceCoords = this.parseCoordinates(source);
-    const destCoords = this.parseCoordinates(destination);
-
-    if (!sourceCoords || !destCoords) {
+    const src = this.parseCoordinates(source);
+    const dst = this.parseCoordinates(destination);
+    if (!src || !dst) {
       throw new Error(
-        "Les coordonnées de départ et d'arrivée doivent être fournies au format 'latitude, longitude'.",
+        "Les coordonnées doivent être au format 'latitude, longitude'.",
       );
     }
-
     if (
-      !this.isWithinFrance(sourceCoords.latitude, sourceCoords.longitude) ||
-      !this.isWithinFrance(destCoords.latitude, destCoords.longitude)
+      !this.isWithinFrance(src.latitude, src.longitude) ||
+      !this.isWithinFrance(dst.latitude, dst.longitude)
     ) {
       throw new Error(
         'Seuls les trajets en France métropolitaine sont supportés pour la bêta.',
       );
     }
 
-    // Calcul de la distance de base et estimation de la durée
+    // Distance et durée de base
     const baseDistance = this.haversineDistance(
-      sourceCoords.latitude,
-      sourceCoords.longitude,
-      destCoords.latitude,
-      destCoords.longitude,
+      src.latitude,
+      src.longitude,
+      dst.latitude,
+      dst.longitude,
     );
-    const baseDuration = baseDistance; // Hypothèse : 1 km/minute
+    const baseDuration = baseDistance; // 1 km/minute
 
-    // Récupération des incidents confirmés proches du point de départ
-    const PROXIMITY_DELTA = 0.1;
+    // Incidents confirmés proches
+    const PROX_DELTA = 0.1;
     const incidents = await this.incidentService.findIncidentsNear(
-      sourceCoords.latitude,
-      sourceCoords.longitude,
-      PROXIMITY_DELTA,
+      src.latitude,
+      src.longitude,
+      PROX_DELTA,
     );
-    const confirmedIncidents = incidents.filter(
-      (incident) => incident.confirmed,
-    );
+    const confirmed = incidents.filter((i) => i.confirmed);
 
-    // Comptage des incidents situés à proximité de la trajectoire
+    // Comptage des incidents sur la ligne
     let incidentsOnRoute = 0;
-    const routeProximityThreshold = 5; // seuil en km
-    for (const incident of confirmedIncidents) {
-      const distanceToRoute = this.pointToLineDistance(
-        incident.latitude,
-        incident.longitude,
-        sourceCoords.latitude,
-        sourceCoords.longitude,
-        destCoords.latitude,
-        destCoords.longitude,
+    const proximityKm = 5;
+    for (const inc of confirmed) {
+      const d = this.pointToLineDistance(
+        inc.latitude,
+        inc.longitude,
+        src.latitude,
+        src.longitude,
+        dst.latitude,
+        dst.longitude,
       );
-      if (distanceToRoute <= routeProximityThreshold) {
-        incidentsOnRoute++;
-      }
+      if (d <= proximityKm) incidentsOnRoute++;
     }
 
-    // Calcul de la première option : itinéraire standard avec pénalités
-    const penaltyDistance = incidentsOnRoute * 1.5; // km supplémentaires par incident
-    const penaltyDuration = incidentsOnRoute * 2; // minutes supplémentaires par incident
-
-    let adjustedDistance1 = baseDistance + penaltyDistance;
-    let adjustedDuration1 = baseDuration + penaltyDuration;
-    let instructions1: string[];
-    const recalculated1 = incidentsOnRoute > 0;
-
+    // Première option : pénalité forte
+    const penaltyDist = incidentsOnRoute * 1.5;
+    const penaltyDur = incidentsOnRoute * 2;
+    let dist1 = baseDistance + penaltyDist;
+    let dur1 = baseDuration + penaltyDur;
+    let instr1: string[];
+    const rec1 = incidentsOnRoute > 0;
     if (options?.avoidTolls) {
-      adjustedDistance1 *= 1.15;
-      adjustedDuration1 *= 1.1;
-      instructions1 = [
+      dist1 *= 1.15;
+      dur1 *= 1.1;
+      instr1 = [
         `Départ de ${source}`,
-        'Itinéraire optimisé pour éviter les péages',
+        'Itinéraire évitant les péages',
         `Arrivée à ${destination}`,
       ];
     } else {
-      instructions1 = recalculated1
+      instr1 = rec1
         ? [
             `Départ de ${source}`,
-            `Trafic perturbé avec ${incidentsOnRoute} incident(s) proche(s), itinéraire ajusté`,
+            `${incidentsOnRoute} incident(s) proche(s), itinéraire ajusté`,
             `Arrivée à ${destination}`,
           ]
         : [
             `Départ de ${source}`,
-            'Suivre la route principale',
+            'Suivre route principale',
             `Arrivée à ${destination}`,
           ];
     }
+
+    // Construction minimaliste des étapes
+    const steps1: RouteStep[] = [
+      {
+        instruction: instr1[0],
+        latitude: src.latitude,
+        longitude: src.longitude,
+        distance: 0,
+        duration: 0,
+      },
+      {
+        instruction: instr1[instr1.length - 1],
+        latitude: dst.latitude,
+        longitude: dst.longitude,
+        distance: dist1 * 1000,
+        duration: dur1 * 60,
+      },
+    ];
 
     const route1: RouteResult = {
       source,
       destination,
-      distance: `${adjustedDistance1.toFixed(2)} km`,
-      duration: `${adjustedDuration1.toFixed(0)} minutes`,
-      instructions: instructions1,
+      distance: `${dist1.toFixed(2)} km`,
+      duration: `${dur1.toFixed(0)} minutes`,
+      instructions: instr1,
+      steps: steps1,
       avoidTolls: options?.avoidTolls || false,
-      recalculated: recalculated1,
+      recalculated: rec1,
     };
 
-    // Calcul de la seconde option : itinéraire alternatif avec une pénalité réduite (simulation)
-    const penaltyDistanceAlt = incidentsOnRoute * 0.75;
-    const penaltyDurationAlt = incidentsOnRoute * 1;
-    let adjustedDistance2 = baseDistance + penaltyDistanceAlt;
-    let adjustedDuration2 = baseDuration + penaltyDurationAlt;
-    let instructions2: string[];
-    const recalculated2 = incidentsOnRoute > 0;
-
+    // Seconde option : pénalité réduite
+    const penaltyDist2 = incidentsOnRoute * 0.75;
+    const penaltyDur2 = incidentsOnRoute * 1;
+    let dist2 = baseDistance + penaltyDist2;
+    let dur2 = baseDuration + penaltyDur2;
+    let instr2: string[];
+    const rec2 = incidentsOnRoute > 0;
     if (options?.avoidTolls) {
-      adjustedDistance2 *= 1.15;
-      adjustedDuration2 *= 1.1;
-      instructions2 = [
+      dist2 *= 1.15;
+      dur2 *= 1.1;
+      instr2 = [
         `Départ de ${source}`,
-        'Itinéraire alternatif pour éviter les péages, moins impacté par le trafic',
+        'Alternative évitant péages',
         `Arrivée à ${destination}`,
       ];
     } else {
-      instructions2 = recalculated2
+      instr2 = rec2
         ? [
             `Départ de ${source}`,
-            `Itinéraire alternatif évitant partiellement les zones à incidents`,
+            'Alternative évitant zones à incidents',
             `Arrivée à ${destination}`,
           ]
         : [
             `Départ de ${source}`,
-            'Suivre la route principale',
+            'Suivre route principale',
             `Arrivée à ${destination}`,
           ];
     }
 
+    const steps2: RouteStep[] = steps1.map((st) => ({ ...st }));
     const route2: RouteResult = {
       source,
       destination,
-      distance: `${adjustedDistance2.toFixed(2)} km`,
-      duration: `${adjustedDuration2.toFixed(0)} minutes`,
-      instructions: instructions2,
+      distance: `${dist2.toFixed(2)} km`,
+      duration: `${dur2.toFixed(0)} minutes`,
+      instructions: instr2,
+      steps: steps2,
       avoidTolls: options?.avoidTolls || false,
-      recalculated: recalculated2,
+      recalculated: rec2,
     };
 
     return { routes: [route1, route2] };
