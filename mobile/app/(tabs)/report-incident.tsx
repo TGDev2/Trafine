@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
+  Text,
   TextInput,
   Button,
   Alert,
   StyleSheet,
-  Text,
   ActivityIndicator,
 } from "react-native";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { useNavigation } from "expo-router";
-import * as Notifications from "expo-notifications";
 
 const INCIDENT_TYPES = [
   { label: "Accident", value: "accident" },
@@ -23,16 +22,15 @@ const INCIDENT_TYPES = [
 ];
 
 export default function ReportIncidentScreen() {
-  const [incidentType, setIncidentType] = useState<string>(
-    INCIDENT_TYPES[0].value
-  );
-  const [description, setDescription] = useState<string>("");
+  const navigation = useNavigation();
+  const [incidentType, setIncidentType] = useState(INCIDENT_TYPES[0].value);
+  const [description, setDescription] = useState("");
   const [location, setLocation] =
     useState<Location.LocationObjectCoords | null>(null);
-  const [loadingLocation, setLoadingLocation] = useState<boolean>(true);
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const navigation = useNavigation();
+  const [loadingLocation, setLoadingLocation] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
+  // Récupération de la position
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -44,10 +42,11 @@ export default function ReportIncidentScreen() {
         setLoadingLocation(false);
         return;
       }
+
       try {
-        const loc = await Location.getCurrentPositionAsync({});
+        const loc = await Location.getCurrentPositionAsync();
         setLocation(loc.coords);
-      } catch (error) {
+      } catch {
         Alert.alert("Erreur", "Impossible de récupérer la position actuelle.");
       } finally {
         setLoadingLocation(false);
@@ -55,22 +54,21 @@ export default function ReportIncidentScreen() {
     })();
   }, []);
 
+  // Envoi du signalement avec authentification
   const handleSubmit = async () => {
     if (!location) {
-      Alert.alert("Erreur", "Aucune position géographique disponible.");
+      Alert.alert(
+        "Position inconnue",
+        "Impossible de localiser votre position pour le signalement."
+      );
       return;
     }
 
     setSubmitting(true);
     try {
-      // Récupérer le token JWT sauvegardé
       const token = await AsyncStorage.getItem("token");
       if (!token) {
-        Alert.alert(
-          "Authentification",
-          "Vous devez être connecté pour signaler un incident."
-        );
-        return;
+        throw new Error("Utilisateur non authentifié");
       }
 
       const response = await fetch("http://localhost:3000/incidents", {
@@ -88,25 +86,17 @@ export default function ReportIncidentScreen() {
       });
 
       if (!response.ok) {
-        const errorMsg = await response.text();
-        throw new Error(
-          errorMsg || "Erreur lors de la soumission de l’incident"
-        );
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Échec du signalement");
       }
 
-      // Notification de succès via Expo Notifications
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Incident signalé",
-          body: "Votre incident a été enregistré avec succès.",
-        },
-        trigger: null,
-      });
-
-      Alert.alert("Succès", "Incident signalé avec succès.");
+      Alert.alert(
+        "Signalement envoyé",
+        "Votre signalement a bien été pris en compte."
+      );
       navigation.goBack();
-    } catch (error: any) {
-      Alert.alert("Erreur", error.message);
+    } catch (err: any) {
+      Alert.alert("Erreur", err.message);
     } finally {
       setSubmitting(false);
     }
@@ -115,8 +105,8 @@ export default function ReportIncidentScreen() {
   if (loadingLocation) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" />
-        <Text>Récupération de la position...</Text>
+        <ActivityIndicator size="large" color="#0a7ea4" />
+        <Text>Récupération de la position…</Text>
       </View>
     );
   }
@@ -124,22 +114,20 @@ export default function ReportIncidentScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Signaler un incident</Text>
+
       <Text style={styles.label}>Type d’incident :</Text>
       <View style={styles.pickerContainer}>
         <Picker
           selectedValue={incidentType}
-          onValueChange={(value) => setIncidentType(value)}
+          onValueChange={setIncidentType}
           style={styles.picker}
         >
-          {INCIDENT_TYPES.map((item) => (
-            <Picker.Item
-              key={item.value}
-              label={item.label}
-              value={item.value}
-            />
+          {INCIDENT_TYPES.map(({ label, value }) => (
+            <Picker.Item key={value} label={label} value={value} />
           ))}
         </Picker>
       </View>
+
       <Text style={styles.label}>Description (facultatif) :</Text>
       <TextInput
         style={styles.input}
@@ -148,8 +136,9 @@ export default function ReportIncidentScreen() {
         onChangeText={setDescription}
         multiline
       />
+
       <Button
-        title={submitting ? "Envoi en cours..." : "Signaler l'incident"}
+        title={submitting ? "Envoi en cours…" : "Signaler l'incident"}
         onPress={handleSubmit}
         disabled={submitting}
       />
