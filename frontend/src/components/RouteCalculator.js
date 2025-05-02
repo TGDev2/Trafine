@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import RouteMap from "./RouteMap";
 import { geocode } from "../utils/geocode";
+import { useAuth } from "../contexts/AuthContext";
+import { apiFetch } from "../utils/api";
 
 /**
  * @param {{socket?: import("socket.io-client").Socket}} props
@@ -17,6 +19,10 @@ function RouteCalculator({ socket }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMessage, setPushMessage] = useState(null);
+
+  const { token, refreshToken, refreshSession, logout } = useAuth();
 
   /* --------------------------------------------------------------- */
   /*  Calcul d’itinéraire (extrait dans une callback réutilisable)   */
@@ -129,6 +135,44 @@ function RouteCalculator({ socket }) {
     }
   };
 
+  /**
+   * Envoi direct de l’itinéraire au mobile via l’API /navigation/push
+   */
+  const handlePush = async () => {
+    if (!sourceCoords || !destCoords) {
+      setError("Vous devez d’abord calculer un itinéraire valide.");
+      return;
+    }
+    setPushLoading(true);
+    setError(null);
+    setPushMessage(null);
+
+    try {
+      const res = await apiFetch(
+        "http://localhost:3000/navigation/push",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: sourceCoords,
+            destination: destCoords,
+            avoidTolls,
+          }),
+        },
+        { token, refreshToken, refreshSession, logout }
+      );
+      if (!res.ok) throw new Error("Erreur lors de l'envoi vers le mobile");
+      const { alternatives } = await res.json();
+      setPushMessage(
+        `Itinéraire envoyé – ${alternatives} alternatives transférées.`
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
   /* --------------------------  Render  ---------------------------- */
   return (
     <div
@@ -227,6 +271,19 @@ function RouteCalculator({ socket }) {
               </ul>
             </div>
           ))}
+
+          <button
+            onClick={handlePush}
+            disabled={pushLoading}
+            style={{
+              marginTop: "10px",
+              padding: "8px 12px",
+              marginRight: "10px",
+            }}
+          >
+            {pushLoading ? "Envoi en cours…" : "Envoyer sur mobile"}
+          </button>
+          {pushMessage && <p style={{ color: "green" }}>{pushMessage}</p>}
 
           <button
             onClick={handleShare}

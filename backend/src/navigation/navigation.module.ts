@@ -4,6 +4,7 @@ import { NavigationService } from './navigation.service';
 import { IncidentModule } from '../incident/incident.module';
 import { OrsRouteCalculationStrategy } from './ors-route-calculation.strategy';
 import { RouteCalculationStrategyImpl } from './route-calculation.strategy';
+import { AlertsModule } from '../alerts/alerts.module';
 
 const RouteStrategyProvider = {
   provide: 'RouteCalculationStrategy',
@@ -14,7 +15,7 @@ const RouteStrategyProvider = {
 };
 
 @Module({
-  imports: [IncidentModule],
+  imports: [IncidentModule, AlertsModule],
   controllers: [NavigationController],
   providers: [NavigationService, RouteStrategyProvider],
   exports: [NavigationService],
