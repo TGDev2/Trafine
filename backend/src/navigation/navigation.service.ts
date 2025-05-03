@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Inject,
+  NotFoundException,
 } from '@nestjs/common';
 import { toDataURL } from 'qrcode';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,55 +18,47 @@ import { ShareableRoute } from './entities/shareable-route.entity';
 export class NavigationService {
   constructor(
     @Inject('RouteCalculationStrategy')
-    private readonly routeCalculationStrategy: RouteCalculationStrategy,
-
+    private readonly routeStrategy: RouteCalculationStrategy,
     @InjectRepository(ShareableRoute)
     private readonly shareRepo: Repository<ShareableRoute>,
-
-    private readonly config: ConfigService,
+    private readonly cfg: ConfigService,
   ) {}
 
-  /**
-   * Renvoie les itinéraires proposés sous forme d’un tableau d’alternatives.
-   */
+  /* ---------- Calcul d’itinéraires ---------- */
   async calculateRoute(
     source: string,
     destination: string,
     options?: { avoidTolls?: boolean },
   ): Promise<{ routes: RouteResult[] }> {
-    return await this.routeCalculationStrategy.calculateRoute(
-      source,
-      destination,
-      options,
-    );
+    return this.routeStrategy.calculateRoute(source, destination, options);
   }
 
-  /**
-   * Génère un QR code pointant vers un lien de partage pour le trajet donné.
-   * Retourne à la fois la DataURL du QR et l'ID de partage.
-   */
+  /* ---------- QR code & persistance ---------- */
   async generateRouteQRCode(
-    route: any,
+    routes: RouteResult[],
   ): Promise<{ qrDataUrl: string; shareId: string }> {
-    // 1) Persister le trajet
-    const shareable = this.shareRepo.create({ route });
-    await this.shareRepo.save(shareable);
+    const shareable = await this.shareRepo.save({ route: routes });
 
-    // 2) Construire l'URL de partage
-    const baseUrl = this.config.get<string>(
+    const base = this.cfg.get<string>(
       'APP_BASE_URL',
       'https://app.trafine.com',
     );
-    const shareUrl = `${baseUrl}/share/${shareable.id}`;
+    const shareUrl = `${base}/share/${shareable.id}`;
 
-    // 3) Générer le QR code sur l'URL
     try {
-      const qrDataUrl = await toDataURL(shareUrl);
-      return { qrDataUrl, shareId: shareable.id };
+      return { qrDataUrl: await toDataURL(shareUrl), shareId: shareable.id };
     } catch (err: any) {
       throw new InternalServerErrorException(
-        `La génération du QR code a échoué : ${err.message}`,
+        `La génération du QR code a échoué : ${err.message}`,
       );
     }
+  }
+
+  /* ---------- Récupération d’un partage ---------- */
+  async getSharedRoute(id: string): Promise<RouteResult[]> {
+    const rec = await this.shareRepo.findOne({ where: { id } });
+    if (!rec)
+      throw new NotFoundException(`Itinéraire partagé ${id} introuvable.`);
+    return rec.route as RouteResult[];
   }
 }

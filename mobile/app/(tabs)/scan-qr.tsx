@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Button, StyleSheet, Alert, FlatList } from "react-native";
-import {
-  Camera,
-  CameraView,
-  BarcodeScanningResult,
-} from "expo-camera";
+import { Camera, CameraView, BarcodeScanningResult } from "expo-camera";
 
 interface RouteDTO {
   source: string;
@@ -29,19 +25,34 @@ export default function ScanQRScreen() {
   }, []);
 
   /* ---------- Callback scan QR ---------- */
-  const handleScan = ({ data }: BarcodeScanningResult) => {
+  const handleScan = async ({ data }: BarcodeScanningResult) => {
     setScanned(true);
+
+    /* ---------- 1. QR contient directement le JSON ---------- */
     try {
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed?.routes)) setRoutes(parsed.routes);
-      else if (Array.isArray(parsed)) setRoutes(parsed);
-      else setRoutes([parsed]);
-    } catch {
-      Alert.alert(
-        "QR Code invalide",
-        "Le QR code scanné ne contient pas un itinéraire valide."
-      );
+      if (Array.isArray(parsed?.routes)) return setRoutes(parsed.routes);
+      if (Array.isArray(parsed)) return setRoutes(parsed);
+    } catch (err) {
+      console.warn("Échec JSON.parse dans ScanQRScreen :", err);
     }
+
+    /* ---------- 2. QR contient une URL de partage ---------- */
+    try {
+      if (data.startsWith("http")) {
+        const res = await fetch(data);
+        if (!res.ok) throw new Error();
+        const { routes } = await res.json();
+        return setRoutes(routes);
+      }
+    } catch (err) {
+      console.warn("Échec fetch de l'URL scannée dans ScanQRScreen :", err);
+    }
+
+    Alert.alert(
+      "QR Code invalide",
+      "Le QR code scanné ne contient pas d'itinéraire exploitable."
+    );
   };
 
   /* ---------- Rendu conditionnel ---------- */
