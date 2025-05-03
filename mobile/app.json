@@ -1,12 +1,11 @@
 {
   "expo": {
-    "sdkVersion": "52.0.0",
+    "sdkVersion": "53.0.6",
     "name": "mobile",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
