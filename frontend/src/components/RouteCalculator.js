@@ -15,10 +15,15 @@ function RouteCalculator({ socket }) {
   const [destCoords, setDestCoords] = useState(null);
   const [avoidTolls, setAvoidTolls] = useState(false);
   const [routes, setRoutes] = useState(null);
+
+  // États pour le partage QR Code
   const [qrCode, setQrCode] = useState(null);
+  const [shareId, setShareId] = useState(null);
+  const [qrLoading, setQrLoading] = useState(false);
+
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [qrLoading, setQrLoading] = useState(false);
+
   const [pushLoading, setPushLoading] = useState(false);
   const [pushMessage, setPushMessage] = useState(null);
 
@@ -36,7 +41,7 @@ function RouteCalculator({ socket }) {
         setRoutes(null);
       }
       try {
-        // Résolution des coordonnées (inline pour satisfaire exhaustive-deps)
+        // Résolution des coordonnées
         const src = coordRegex.test(sourceInput)
           ? sourceInput
           : await geocode(sourceInput);
@@ -85,8 +90,7 @@ function RouteCalculator({ socket }) {
   );
 
   /* ----------------------------------------------
-   *  Recalcul automatique sur « incidentAlert »
-   *  – throttlé (1 exécution max toutes les 10 s)
+   *  Recalcul automatique sur « incidentAlert »
    * --------------------------------------------- */
   useEffect(() => {
     if (!socket) return;
@@ -105,7 +109,7 @@ function RouteCalculator({ socket }) {
     return () => socket.off("incidentAlert", onIncidentAlert);
   }, [socket, routes, handleCalculateRoute]);
 
-  /* --------------------------  QR Share  -------------------------- */
+  /* --------------------------  QR Share  -------------------------- */
   const handleShare = async () => {
     if (!sourceCoords || !destCoords) {
       setError("Vous devez d’abord calculer un itinéraire valide.");
@@ -125,9 +129,12 @@ function RouteCalculator({ socket }) {
         }),
       });
       if (!response.ok)
-        throw new Error("Erreur lors de la génération du QR code");
+        throw new Error("Erreur lors de la génération du QR code");
+
       const data = await response.json();
-      setQrCode(data.qrCode);
+      // On reçoit maintenant qrDataUrl et shareId
+      setQrCode(data.qrDataUrl);
+      setShareId(data.shareId);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -194,25 +201,25 @@ function RouteCalculator({ socket }) {
       >
         {/* Source */}
         <div style={{ marginBottom: "10px" }}>
-          <label style={{ marginRight: "10px" }}>Point de départ :</label>
+          <label style={{ marginRight: "10px" }}>Point de départ :</label>
           <input
             type="text"
             value={sourceInput}
             onChange={(e) => setSourceInput(e.target.value)}
             required
-            placeholder="Ex : Paris ou 48.8566, 2.3522"
+            placeholder="Ex : Paris ou 48.8566, 2.3522"
           />
         </div>
 
         {/* Destination */}
         <div style={{ marginBottom: "10px" }}>
-          <label style={{ marginRight: "10px" }}>Destination :</label>
+          <label style={{ marginRight: "10px" }}>Destination :</label>
           <input
             type="text"
             value={destinationInput}
             onChange={(e) => setDestinationInput(e.target.value)}
             required
-            placeholder="Ex : Lyon ou 45.7640, 4.8357"
+            placeholder="Ex : Lyon ou 45.7640, 4.8357"
           />
         </div>
 
@@ -234,7 +241,7 @@ function RouteCalculator({ socket }) {
         </button>
       </form>
 
-      {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
+      {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
 
       {/* -------  Résultats ------- */}
       {routes && routes.length > 0 && (
@@ -252,17 +259,17 @@ function RouteCalculator({ socket }) {
               }}
             >
               <p>
-                <strong>Distance :</strong> {rt.distance}
+                <strong>Distance :</strong> {rt.distance}
               </p>
               <p>
-                <strong>Durée :</strong> {rt.duration}
+                <strong>Durée :</strong> {rt.duration}
               </p>
               <p>
-                <strong>Type :</strong>{" "}
+                <strong>Type :</strong>{" "}
                 {rt.recalculated ? "Recalculé" : "Optimal"}
               </p>
               <p>
-                <strong>Instructions :</strong>
+                <strong>Instructions :</strong>
               </p>
               <ul>
                 {rt.instructions.map((instr, i) => (
@@ -290,20 +297,32 @@ function RouteCalculator({ socket }) {
             disabled={qrLoading}
             style={{ marginTop: "10px", padding: "8px 12px" }}
           >
-            {qrLoading ? "Génération du QR code…" : "Partager l’itinéraire"}
+            {qrLoading ? "Génération du QR code…" : "Partager l’itinéraire"}
           </button>
         </div>
       )}
 
-      {/* -------  QR code ------- */}
+      {/* -------  QR code de partage ------- */}
       {qrCode && (
         <div style={{ marginTop: "15px" }}>
-          <h4>QR code de partage</h4>
+          <h4>QR code de partage</h4>
           <img
             src={qrCode}
-            alt="QR code itinéraire"
+            alt="QR code itinéraire"
             style={{ maxWidth: "200px" }}
           />
+          {shareId && (
+            <p>
+              Lien de partage :{" "}
+              <a
+                href={`/share/${shareId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {window.location.origin}/share/{shareId}
+              </a>
+            </p>
+          )}
         </div>
       )}
     </div>

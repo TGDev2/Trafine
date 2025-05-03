@@ -30,20 +30,17 @@ export class NavigationController {
     );
   }
 
-  /* ------------------ QR code (existant) ------------------- */
+  /* ------------------ Partage via QR Code ------------------ */
   @Post('share')
-  async shareRoute(@Body() body: CalcBody) {
-    const qrCodeData = await this.navigationService.generateRouteQRCode(
-      body.source,
-      body.destination,
-      { avoidTolls: body.avoidTolls },
-    );
-    return { qrCode: qrCodeData };
+  async shareRoute(
+    @Body() routeDto: CalcBody,
+  ): Promise<{ qrDataUrl: string; shareId: string }> {
+    // Le service renvoie déjà qrDataUrl et shareId (pas de requête SQL supplémentaire)
+    return this.navigationService.generateRouteQRCode(routeDto);
   }
 
   /* ----------------------------------------------------------
-   *  Push direct vers l’app mobile
-   *  Auth : JWT
+   *  Push direct vers l’app mobile (JWT)
    * ---------------------------------------------------------*/
   @UseGuards(JwtAuthGuard)
   @Post('push')
@@ -53,10 +50,7 @@ export class NavigationController {
       body.destination,
       { avoidTolls: body.avoidTolls },
     );
-
-    // Diffusion ciblée via WebSocket
     this.alertsGateway.sendRouteToUser(req.user.userId, routes);
-
     return { ok: true, pushed: true, alternatives: routes.length };
   }
 }

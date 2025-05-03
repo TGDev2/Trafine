@@ -84,12 +84,18 @@ async function bootstrap() {
 
     app.use((req: Request, res: Response, next: NextFunction) => {
       const isAuthRoute = req.path.startsWith('/auth');
+      const isNavBypass =
+        req.path.startsWith('/navigation/share') ||
+        req.path.startsWith('/navigation/push');
       const hasCsrfCookie = req.headers.cookie?.includes('XSRF-TOKEN');
-      if (isAuthRoute || !hasCsrfCookie) return next();
+      if (isAuthRoute || isNavBypass || !hasCsrfCookie) {
+        return next();
+      }
       return csrfMw(req, res, next);
     });
   }
 
+  /* ----------- Injection du token CSRF en cookie XSRF-TOKEN ----------- */
   app.use((req: Request, res: Response, next: NextFunction) => {
     const tokenFn = (req as any).csrfToken as (() => string) | undefined;
     if (tokenFn) {
