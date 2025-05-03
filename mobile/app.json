@@ -1,5 +1,6 @@
 {
   "expo": {
+    "sdkVersion": "52.0.0",
     "name": "mobile",
     "slug": "mobile",
     "version": "1.0.0",
@@ -15,7 +16,14 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.mobile"
     },
     "web": {
       "bundler": "metro",

@@ -36,7 +36,7 @@ export class NavigationService {
   /* ---------- QR code & persistance ---------- */
   async generateRouteQRCode(
     routes: RouteResult[],
-  ): Promise<{ qrDataUrl: string; shareId: string }> {
+  ): Promise<{ qrCode: string; shareId: string }> {
     const shareable = await this.shareRepo.save({ route: routes });
 
     const base = this.cfg.get<string>(
@@ -46,7 +46,7 @@ export class NavigationService {
     const shareUrl = `${base}/share/${shareable.id}`;
 
     try {
-      return { qrDataUrl: await toDataURL(shareUrl), shareId: shareable.id };
+      return { qrCode: await toDataURL(shareUrl), shareId: shareable.id };
     } catch (err: any) {
       throw new InternalServerErrorException(
         `La génération du QR code a échoué : ${err.message}`,
