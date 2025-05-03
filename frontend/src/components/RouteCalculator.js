@@ -132,8 +132,8 @@ function RouteCalculator({ socket }) {
         throw new Error("Erreur lors de la génération du QR code");
 
       const data = await response.json();
-      // On reçoit maintenant qrDataUrl et shareId
-      setQrCode(data.qrDataUrl);
+      // On reçoit maintenant qrCode et shareId
+      setQrCode(data.qrCode);
       setShareId(data.shareId);
     } catch (err) {
       setError(err.message);

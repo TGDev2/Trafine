@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { NavigationService } from './navigation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AlertsGateway } from '../alerts/alerts.gateway';
+import { Request } from 'express';
 
 interface CalcBody {
   source: string;
@@ -34,9 +35,10 @@ export class NavigationController {
   @Post('share')
   async shareRoute(
     @Body() routeDto: CalcBody,
-  ): Promise<{ qrDataUrl: string; shareId: string }> {
-    // Le service renvoie déjà qrDataUrl et shareId (pas de requête SQL supplémentaire)
-    return this.navigationService.generateRouteQRCode(routeDto);
+  ): Promise<{ qrCode: string; shareId: string }> {
+    const { qrDataUrl, shareId } =
+      await this.navigationService.generateRouteQRCode(routeDto);
+    return { qrCode: qrDataUrl, shareId };
   }
 
   /* ----------------------------------------------------------
