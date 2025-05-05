@@ -8,28 +8,47 @@ import {
   StyleSheet,
   Alert,
   Switch,
+  Dimensions,
 } from "react-native";
 import * as Location from "expo-location";
 import { io, Socket } from "socket.io-client";
+import MapView, {
+  Marker,
+  Polyline,
+  PROVIDER_GOOGLE,
+  Region,
+} from "react-native-maps";
+
+// Définition de types clairs pour les coordonnées
+type LatLng = { latitude: number; longitude: number };
+type CoordinatePair = [number, number];
 
 export default function CalculateRouteScreen() {
   const [currentLocation, setCurrentLocation] =
     useState<Location.LocationObjectCoords | null>(null);
+  const [region, setRegion] = useState<Region | null>(null);
   const [destination, setDestination] = useState("");
   const [avoidTolls, setAvoidTolls] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [loadingRoute, setLoadingRoute] = useState(false);
-  const [route, setRoute] = useState<any>(null);
+  const [routeData, setRouteData] = useState<any>(null);
   const socketRef = useRef<Socket | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Récupération initiale de la position actuelle
+  // --- Initialisation position et région de la carte ---
   useEffect(() => {
     (async () => {
       try {
         const loc = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = loc.coords;
         setCurrentLocation(loc.coords);
-      } catch (err) {
+        setRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      } catch {
         Alert.alert("Erreur", "Impossible de récupérer la position actuelle.");
       } finally {
         setLoadingLocation(false);
@@ -41,55 +60,82 @@ export default function CalculateRouteScreen() {
   }, []);
 
   /**
-   * Met à jour la position de l’utilisateur et calcule l’itinéraire.
+   * Calcul de l’itinéraire et recentrage carte sur l’itinéraire calculé.
    */
   const handleCalculateRoute = useCallback(async () => {
+    if (!currentLocation) return;
+
     setLoadingRoute(true);
     setError(null);
+
     try {
-      // Actualisation de la position de l'utilisateur
+      // Actualisation de la position
       const loc = await Location.getCurrentPositionAsync({});
       setCurrentLocation(loc.coords);
+
       const sourceString = `${loc.coords.latitude},${loc.coords.longitude}`;
-      const response = await fetch(
-        "http://localhost:3000/navigation/calculate",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            source: sourceString,
-            destination,
-            avoidTolls,
-          }),
-        }
-      );
-      if (!response.ok) {
+      const res = await fetch("http://localhost:3000/navigation/calculate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source: sourceString,
+          destination,
+          avoidTolls,
+        }),
+      });
+      if (!res.ok) {
         throw new Error("Erreur lors du calcul de l'itinéraire");
       }
-      const data = await response.json();
-      setRoute(data);
-      if (socketRef.current && data.routes?.length > 0) {
-        const geo = data.routes[0].geometry;
-        if (geo?.type === "LineString") {
-          socketRef.current.emit("subscribeRoute", {
-            geometry: { type: "Feature", geometry: geo, properties: {} },
-            threshold: 1000,
-          });
-        }
+
+      const data = await res.json();
+      setRouteData(data);
+
+      // Recentre la carte sur le premier itinéraire
+      const geo = data.routes[0].geometry;
+      if (geo?.type === "LineString") {
+        // Typage explicite des coordonnées
+        const coords: LatLng[] = (geo.coordinates as CoordinatePair[]).map(
+          ([lon, lat]: CoordinatePair): LatLng => ({
+            latitude: lat,
+            longitude: lon,
+          })
+        );
+
+        const lats = coords.map((c: LatLng) => c.latitude);
+        const lons = coords.map((c: LatLng) => c.longitude);
+        const minLat = Math.min(...lats);
+        const maxLat = Math.max(...lats);
+        const minLon = Math.min(...lons);
+        const maxLon = Math.max(...lons);
+
+        setRegion({
+          latitude: (minLat + maxLat) / 2,
+          longitude: (minLon + maxLon) / 2,
+          latitudeDelta: (maxLat - minLat) * 1.5,
+          longitudeDelta: (maxLon - minLon) * 1.5,
+        });
+
+        // Souscription aux alertes pour recalculer si besoin
+        socketRef.current?.emit("subscribeRoute", {
+          geometry: { type: "Feature", geometry: geo, properties: {} },
+          threshold: 1000,
+        });
       }
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoadingRoute(false);
     }
-  }, [destination, avoidTolls]);
+  }, [destination, avoidTolls, currentLocation]);
 
-  // Souscription à la réception d'alertes via Socket.IO pour déclencher un recalcul
+  // Recalcul automatique sur réception d’un incident
   useEffect(() => {
-    if (!route) return;
-    const socket = io("http://localhost:3000", { transports: ["websocket"] });
+    if (!routeData) return;
+    const socket = io("http://localhost:3000", {
+      transports: ["websocket"],
+    });
     const onIncidentAlert = () => {
       handleCalculateRoute();
     };
@@ -98,131 +144,105 @@ export default function CalculateRouteScreen() {
       socket.off("incidentAlert", onIncidentAlert);
       socket.disconnect();
     };
-  }, [route, handleCalculateRoute]);
+  }, [routeData, handleCalculateRoute]);
 
-  const handleSubmit = () => {
-    handleCalculateRoute();
-  };
-
-  if (loadingLocation) {
+  if (loadingLocation || !region) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#0a7ea4" />
-        <Text>Récupération de la position...</Text>
+        <ActivityIndicator size="large" />
+        <Text>Récupération de la position…</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Calculer l'itinéraire</Text>
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Destination :</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex : Lyon"
-          value={destination}
-          onChangeText={setDestination}
-        />
-      </View>
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Éviter les péages :</Text>
-        <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
-      </View>
-      <Button title="Calculer" onPress={handleSubmit} disabled={loadingRoute} />
-      {loadingRoute && (
-        <ActivityIndicator
-          style={styles.loadingIndicator}
-          size="small"
-          color="#0a7ea4"
-        />
-      )}
-      {error && <Text style={styles.error}>Erreur : {error}</Text>}
-      {route &&
-        route.routes &&
-        route.routes.map((r: any, index: number) => (
-          <View key={index} style={styles.routeContainer}>
-            <Text style={styles.routeTitle}>
-              Itinéraire alternatif {index + 1}
-            </Text>
-            <Text>
-              <Text style={styles.bold}>Distance :</Text> {r.distance}
-            </Text>
-            <Text>
-              <Text style={styles.bold}>Durée :</Text> {r.duration}
-            </Text>
-            <Text>
-              <Text style={styles.bold}>Type d’itinéraire :</Text>{" "}
-              {r.recalculated
-                ? "Recalculé en raison d'incidents confirmés"
-                : "Optimal"}
-            </Text>
-            <Text style={styles.instructionsTitle}>Instructions :</Text>
-            {r.instructions.map((instr: string, idx: number) => (
-              <Text key={idx}>{instr}</Text>
-            ))}
-          </View>
+    <View style={styles.screen}>
+      {/* 1. Carte */}
+      <MapView provider={PROVIDER_GOOGLE} style={styles.map} region={region}>
+        {routeData?.routes?.map((r: any, idx: number) => (
+          <Polyline
+            key={idx}
+            coordinates={(r.geometry.coordinates as CoordinatePair[]).map(
+              ([lon, lat]: CoordinatePair): LatLng => ({
+                latitude: lat,
+                longitude: lon,
+              })
+            )}
+            strokeWidth={4}
+            strokeColor="#0a7ea4"
+          />
         ))}
+        {currentLocation && (
+          <Marker
+            coordinate={{
+              latitude: currentLocation.latitude,
+              longitude: currentLocation.longitude,
+            }}
+            title="Vous"
+          />
+        )}
+      </MapView>
+
+      {/* 2. Formulaire */}
+      <View style={styles.controls}>
+        <Text style={styles.heading}>Calculer l’itinéraire</Text>
+
+        <View style={styles.inputGroup}>
+          <Text>Destination :</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex : Lyon"
+            value={destination}
+            onChangeText={setDestination}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text>Éviter les péages :</Text>
+          <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
+        </View>
+
+        <Button
+          title="Calculer"
+          onPress={handleCalculateRoute}
+          disabled={loadingRoute}
+        />
+        {loadingRoute && <ActivityIndicator style={{ marginTop: 8 }} />}
+        {error && <Text style={styles.error}>Erreur : {error}</Text>}
+      </View>
     </View>
   );
 }
 
+const { height } = Dimensions.get("window");
+const mapHeight = height * 0.4;
+
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: 20,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 4,
-  },
+  screen: { flex: 1, backgroundColor: "#fff" },
+  map: { width: "100%", height: mapHeight },
+  controls: { flex: 1, padding: 12 },
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   heading: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
+    fontSize: 18,
+    marginBottom: 12,
+    fontWeight: "600",
   },
   inputGroup: {
-    marginBottom: 10,
-  },
-  label: {
-    marginRight: 10,
-    fontSize: 16,
+    marginBottom: 12,
   },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 4,
     padding: 8,
-  },
-  loadingIndicator: {
-    marginTop: 8,
-  },
-  routeContainer: {
-    marginTop: 15,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 4,
-  },
-  routeTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  instructionsTitle: {
-    marginTop: 8,
-    fontWeight: "bold",
-  },
-  bold: {
-    fontWeight: "bold",
+    marginTop: 4,
   },
   error: {
-    color: "red",
+    color: "crimson",
     marginTop: 8,
   },
 });

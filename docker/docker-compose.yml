@@ -55,8 +55,6 @@ services:
     tty: true
 
 volumes:
-  osrm_data:
-    driver: local
   postgres_data:
 
 networks:

@@ -53,10 +53,3 @@ erDiagram
 |------|---------------------------|
 | Web  | React 18, React-Router v7, Leaflet, Recharts |
 | Mobile | Expo SDK 52, react-native-maps, expo-camera |
-
----
-
-## 7. Tests
-
-* **unit** Nest (+Jest) – 100 % services critiques.
-* **e2e** Supertest – auth, incidents, navigation, stats.
