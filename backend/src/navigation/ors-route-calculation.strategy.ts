@@ -3,20 +3,12 @@ import {
   RouteResult,
   RouteStep,
 } from './route-calculation.strategy';
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  BadRequestException,
+} from '@nestjs/common';
 import axios from 'axios';
-
-interface OrsStep {
-  instruction: string;
-  distance: number;
-  duration: number;
-  way_points: [number, number];
-}
-interface OrsSegment {
-  steps: OrsStep[];
-  distance: number;
-  duration: number;
-}
 
 @Injectable()
 export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
@@ -24,9 +16,28 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
     process.env.ORS_BASE_URL || 'https://api.openrouteservice.org';
   private readonly apiKey = process.env.ORS_API_KEY ?? '';
 
+  /**
+   * Vérifie qu’un point est bien en France métropolitaine
+   */
+  private assertInFrance(lat: number, lon: number, label: string) {
+    const minLat = 41.0,
+      maxLat = 51.0,
+      minLon = -5.0,
+      maxLon = 9.0;
+    if (lat < minLat || lat > maxLat || lon < minLon || lon > maxLon) {
+      throw new BadRequestException(
+        `${label} (${lat}, ${lon}) doit se situer en France métropolitaine.`,
+      );
+    }
+  }
+
   private parseCoords(str: string) {
-    const [lat, lon] = str.split(',').map((s) => parseFloat(s.trim()));
-    if (isFinite(lat) && isFinite(lon)) return { lat, lon };
+    const [latStr, lonStr] = str.split(',').map((s) => s.trim());
+    const lat = parseFloat(latStr),
+      lon = parseFloat(lonStr);
+    if (isFinite(lat) && isFinite(lon)) {
+      return { lat, lon };
+    }
     throw new Error(
       "Les coordonnées doivent être au format 'latitude, longitude'.",
     );
@@ -43,9 +54,15 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
       );
     }
 
+    // 1. Parser
     const s = this.parseCoords(source);
     const d = this.parseCoords(destination);
 
+    // 2. Validation France
+    this.assertInFrance(s.lat, s.lon, 'Point de départ');
+    this.assertInFrance(d.lat, d.lon, 'Point d’arrivée');
+
+    // 3. Construction de la requête ORS
     const body: any = {
       coordinates: [
         [s.lon, s.lat],
@@ -77,13 +94,13 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
       );
 
       const features = data.features as any[];
-      if (!features?.length) throw new Error('Réponse ORS invalide ou vide');
+      if (!features?.length) {
+        throw new Error('Réponse ORS invalide ou vide');
+      }
 
-      const routes: RouteResult[] = features.map((f, idx) => {
-        const seg: OrsSegment = f.properties.segments[0];
-
-        // Construction des étapes détaillées
-        const steps: RouteStep[] = seg.steps.map((step) => {
+      const routes: RouteResult[] = features.map((f: any, idx: number) => {
+        const seg = f.properties.segments[0] as any;
+        const steps: RouteStep[] = seg.steps.map((step: any) => {
           const [wpIndex] = step.way_points;
           const [lon, lat] = f.geometry.coordinates[wpIndex];
           return {
@@ -94,13 +111,12 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
             duration: step.duration,
           };
         });
-
         return {
           source,
           destination,
           distance: `${(seg.distance / 1000).toFixed(2)} km`,
           duration: `${Math.round(seg.duration / 60)} minutes`,
-          instructions: seg.steps.map((s) => s.instruction),
+          instructions: seg.steps.map((s: any) => s.instruction),
           steps,
           avoidTolls: opts?.avoidTolls ?? false,
           recalculated: idx > 0,
