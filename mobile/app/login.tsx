@@ -16,7 +16,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleOAuthLogin = async (provider: "google" | "twitter") => {
+  const handleOAuthLogin = async (provider: "google") => {
     setLoading(true);
     try {
       // Calcul du redirect URI en fonction du schéma défini dans app.json (ici "myapp")
@@ -55,10 +55,6 @@ export default function LoginScreen() {
             onPress={() => handleOAuthLogin("google")}
           />
           <View style={{ height: 10 }} />
-          <Button
-            title="Se connecter avec Twitter"
-            onPress={() => handleOAuthLogin("twitter")}
-          />
         </>
       )}
     </View>

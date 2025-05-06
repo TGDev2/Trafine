@@ -21,9 +21,6 @@ const DEV_DEFAULTS = {
   GOOGLE_CLIENT_ID: 'dummy-google-id',
   GOOGLE_CLIENT_SECRET: 'dummy-google-secret',
   GOOGLE_CALLBACK_URL: 'http://localhost:3000/auth/google/callback',
-  TWITTER_CONSUMER_KEY: 'dummy-twitter-key',
-  TWITTER_CONSUMER_SECRET: 'dummy-twitter-secret',
-  TWITTER_CALLBACK_URL: 'http://localhost:3000/auth/twitter/callback',
   ALLOWED_REDIRECT_URLS: 'http://localhost:3001,myapp://redirect',
   ALLOWED_WEB_ORIGINS: 'http://localhost:3001,http://localhost:19006',
   ORS_BASE_URL: 'https://api.openrouteservice.org',
@@ -88,20 +85,6 @@ const DEV_DEFAULTS = {
         GOOGLE_CALLBACK_URL: Joi.string()
           .uri()
           .default(DEV_DEFAULTS.GOOGLE_CALLBACK_URL),
-
-        TWITTER_CONSUMER_KEY: Joi.when('NODE_ENV', {
-          is: 'production',
-          then: Joi.string().required(),
-          otherwise: Joi.string().default(DEV_DEFAULTS.TWITTER_CONSUMER_KEY),
-        }),
-        TWITTER_CONSUMER_SECRET: Joi.when('NODE_ENV', {
-          is: 'production',
-          then: Joi.string().required(),
-          otherwise: Joi.string().default(DEV_DEFAULTS.TWITTER_CONSUMER_SECRET),
-        }),
-        TWITTER_CALLBACK_URL: Joi.string()
-          .uri()
-          .default(DEV_DEFAULTS.TWITTER_CALLBACK_URL),
 
         ADMIN_USERNAME: Joi.string().default('admin'),
         ADMIN_PASSWORD: Joi.string().min(4).default('admin'),

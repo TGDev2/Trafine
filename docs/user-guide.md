@@ -4,7 +4,7 @@
 
 ### Connexion
 1. Rendez-vous sur **https://admin.trafine.app**  
-2. Choisissez **Google** ou **Twitter** (OAuth2)  
+2. Choisissez **Google** (OAuth2)  
 3. Première connexion → compte « user ». Un administrateur peut promouvoir en « moderator ».
 
 ### Gestion des incidents

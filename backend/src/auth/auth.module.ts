@@ -7,7 +7,6 @@ import { LocalStrategy } from './local.strategy';
 import { JwtStrategy } from './jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleStrategy } from './google.strategy';
-import { TwitterAuthStrategy } from './twitter.strategy';
 import { UserModule } from '../user/user.module';
 
 @Module({
@@ -29,7 +28,6 @@ import { UserModule } from '../user/user.module';
     LocalStrategy,
     JwtStrategy,
     GoogleStrategy,
-    TwitterAuthStrategy,
   ],
   controllers: [AuthController],
   exports: [AuthService, JwtModule],

@@ -11,7 +11,7 @@
 
 ## 2. Sécurité
 
-* **OAuth2** via `passport-google-oauth20`, `passport-twitter`.
+* **OAuth2** via `passport-google-oauth20`.
 * **JWT** access 1 h / refresh 7 j – hashé en base pour révocation.
 * **CSRF** : cookie `XSRF-TOKEN` + en-tête `X-CSRF-Token`.
 * **XSS / SQLi** : `class-sanitizer`, requêtes paramétrées TypeORM.
