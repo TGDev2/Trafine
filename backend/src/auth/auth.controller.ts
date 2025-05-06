@@ -67,26 +67,6 @@ export class AuthController {
     );
   }
 
-  /* ----------  OAuth Twitter ---------- */
-
-  @Get('twitter')
-  @UseGuards(AuthGuard('twitter'))
-  async twitterAuth(): Promise<void> {}
-
-  @Get('twitter/callback')
-  @UseGuards(AuthGuard('twitter'))
-  async twitterCallback(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    const tokens = await this.authService.login(req.user);
-    const redirectUri = this.resolveRedirectUri(
-      (req.query.redirect_uri as string) || undefined,
-    );
-    return res.redirect(
-      `${redirectUri}?token=${encodeURIComponent(
-        tokens.access_token,
-      )}&refreshToken=${encodeURIComponent(tokens.refresh_token)}`,
-    );
-  }
-
   /* ----------  Refresh & Logout ---------- */
   @Post('refresh')
   async refresh(@Body() body: { refreshToken: string }) {

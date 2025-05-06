@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 import Register from "./components/Register";
@@ -13,15 +13,21 @@ function PrivateRoute({ children }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const hideHeaderRoutes = ["/login", "/register"];
+  const showHeader = !hideHeaderRoutes.includes(location.pathname);
+
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>Trafine – Interface web</h1>
-        <nav style={{ marginTop: 10, display: "flex", gap: 20 }}>
-          <Link to="/">Incidents</Link>
-          <Link to="/stats">Statistiques</Link>
-        </nav>
-      </header>
+      {showHeader && (
+        <header className="App-header">
+          <h1>Trafine – Interface web</h1>
+          <nav style={{ marginTop: 10, display: "flex", gap: 20 }}>
+            <Link to="/">Incidents</Link>
+            <Link to="/stats">Statistiques</Link>
+          </nav>
+        </header>
+      )}
 
       <main>
         <Routes>
