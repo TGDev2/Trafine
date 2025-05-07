@@ -17,8 +17,10 @@ export default function App() {
   const hideHeaderRoutes = ["/login", "/register"];
   const showHeader = !hideHeaderRoutes.includes(location.pathname);
 
+  
   return (
     <div className="App">
+  {/*}   
       {showHeader && (
         <header className="App-header">
           <h1>Trafine – Interface web</h1>
@@ -28,7 +30,7 @@ export default function App() {
           </nav>
         </header>
       )}
-
+  */}
       <main>
         <Routes>
           <Route

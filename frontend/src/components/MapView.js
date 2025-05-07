@@ -16,7 +16,7 @@ const MapView = ({ incidents }) => {
   const defaultPosition = [46.603354, 1.8883335];
 
   return (
-    <div style={{ height: "400px", width: "100%", marginBottom: "20px" }}>
+    <div style={{ height: "1200px", width: "100%", marginBottom: "20px" }}>
       <MapContainer
         center={defaultPosition}
         zoom={6}
