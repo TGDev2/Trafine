@@ -1,0 +1,152 @@
+/* Reset & font */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+html, body {
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f5f7;
+    color: #333;
+}
+
+/* Centrage de la carte */
+.login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh; /* plein écran */
+    padding: 1rem;
+}
+
+/* La “carte” blanche */
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Logo Traffine */
+.logo {
+    display: block;
+    margin: 0 auto 1rem;
+    width: 120px; 
+    height: auto;
+}
+
+/* Titre centrés */
+.login-container h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+/* Message d’erreur */
+.error-msg {
+    color: #c00;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+/* Formulaire */
+.login-form label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+}
+.login-form input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e4e8;
+    border-radius: 4px;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.login-form input:focus {
+    border-color: #3759fe;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(55, 89, 254, 0.2);
+}
+
+/* Bouton principal */
+.login-form .btn {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #3759fe;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.login-form .btn:hover {
+    background-color: #2e4ed8;
+}
+
+/* Lien d’inscription */
+.register-link {
+    text-align: center;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+}
+.register-link a {
+    color: #3759fe;
+    text-decoration: none;
+    font-weight: 500;
+}
+.register-link a:hover {
+    text-decoration: underline;
+}
+
+/* Séparateur “OU” */
+.separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.5rem 0;
+    color: #aaa;
+    font-size: 0.85rem;
+}
+.separator::before,
+.separator::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #e2e4e8;
+    margin: 0 0.5em;
+}
+
+/* Boutons sociaux */
+.social-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e4e8;
+    padding: 0.6rem;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background-color 0.2s;
+}
+.social-btn:hover {
+    background-color: #f0f0f0;
+}
+.social-btn img {
+    width: 20px;
+    height: 20px;
+    margin-right: 0.5rem;
+}

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import "../style/login.css";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -10,7 +11,6 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  /* ---------------- Connexion locale ---------------- */
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -21,8 +21,7 @@ export default function Login() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (!res.ok)
-        throw new Error("Nom d’utilisateur ou mot de passe invalide");
+      if (!res.ok) throw new Error("Nom d’utilisateur ou mot de passe invalide");
       const { access_token, refresh_token } = await res.json();
       login(access_token, refresh_token);
       navigate("/", { replace: true });
@@ -33,53 +32,59 @@ export default function Login() {
     }
   };
 
-  /* ---------------- OAuth2 ---------------- */
   const handleOAuth = (provider) => {
-    const base = `http://localhost:3000/auth/${provider}`;
-    const url =
-      provider === "twitter"
-        ? base
-        : `${base}?redirect_uri=${encodeURIComponent(window.location.origin)}`;
-    window.location.href = url;
+    const redirectUri = window.location.origin; // http://localhost:3001/ en dev
+     window.location.href = `http://localhost:3000/auth/${provider}?redirect_uri=${encodeURIComponent(
+       redirectUri
+     )}`;
+
   };
 
   return (
-    <div style={{ margin: "0 auto", maxWidth: 400, padding: 20 }}>
-      <h2>Connexion</h2>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+    <div className="login-page">
+      <div className="login-container">
+        {/* Logo Traffine */}
+        <img src="/traffine-icon.png" alt="Traffine Logo" className="logo" />
 
-      <form onSubmit={handleLogin}>
-        <label>Nom d’utilisateur :</label>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          style={{ width: "100%", padding: 8, marginBottom: 10 }}
-        />
+        <h2>Connexion</h2>
+        {error && <p className="error-msg">{error}</p>}
 
-        <label>Mot de passe :</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ width: "100%", padding: 8, marginBottom: 10 }}
-        />
+        <form className="login-form" onSubmit={handleLogin}>
+          <label htmlFor="username">Nom d’utilisateur</label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
 
-        <button type="submit" disabled={loading} style={{ width: "100%" }}>
-          {loading ? "Connexion…" : "Se connecter"}
-        </button>
-      </form>
+          <label htmlFor="password">Mot de passe</label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-      <p style={{ marginTop: 15 }}>
-        Nouveau ? <Link to="/register">Créer un compte</Link>
-      </p>
+          <button type="submit" className="btn" disabled={loading}>
+            {loading ? "Connexion…" : "Se connecter"}
+          </button>
+        </form>
 
-      <p style={{ textAlign: "center", margin: "15px 0" }}>Ou continuer avec</p>
-      <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-        <button onClick={() => handleOAuth("google")}>Google</button>
-        <button onClick={() => handleOAuth("twitter")}>Twitter</button>
+        <p className="register-link">
+          Nouveau ? <Link to="/register">Créer un compte</Link>
+        </p>
+
+        <div className="separator">OU</div>
+
+        <div className="social-buttons">
+          <button onClick={() => handleOAuth("google")} className="social-btn">
+            <img src="/google.svg" alt="Google logo" />
+            Continuer avec Google
+          </button>
+        </div>
       </div>
     </div>
   );
