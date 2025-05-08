@@ -90,7 +90,7 @@ export class IncidentController {
   /* ----------  Votes utilisateur ---------- */
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('user')
+  @Roles('user', 'moderator', 'admin')
   @Patch(':id/confirm')
   async confirm(
     @Param('id', ParseIntPipe) id: number,
@@ -104,7 +104,7 @@ export class IncidentController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('user')
+  @Roles('user', 'moderator', 'admin')
   @Patch(':id/deny')
   async deny(
     @Param('id', ParseIntPipe) id: number,

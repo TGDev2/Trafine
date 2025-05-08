@@ -2,15 +2,14 @@ import React from "react";
 import { MapContainer, TileLayer, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-/**
- * Affiche un ou plusieurs itinéraires GeoJSON sur une carte Leaflet.
- * @param {Array<{ geometry: { coordinates: number[][] } }>} routes
- */
 export default function RouteMap({ routes }) {
   if (!routes || routes.length === 0) {
     return null;
   }
 
+  // Couleurs pour différencier les itinéraires
+  const routeColors = ['#2980b9', '#27ae60', '#8e44ad', '#d35400', '#c0392b'];
+  
   // Centrage sur le premier point du premier itinéraire
   const firstCoords = routes[0].geometry.coordinates[0];
   const center = [firstCoords[1], firstCoords[0]];
@@ -28,7 +27,6 @@ export default function RouteMap({ routes }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {routes.map((rt, idx) => {
-          // Convertit [lon,lat] → [lat,lon]
           const positions = rt.geometry.coordinates.map(([lon, lat]) => [
             lat,
             lon,
@@ -37,6 +35,7 @@ export default function RouteMap({ routes }) {
             <Polyline
               key={idx}
               positions={positions}
+              color={routeColors[idx % routeColors.length]}
               weight={5}
               opacity={0.8}
             />

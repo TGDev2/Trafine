@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import React, { useState, useCallback } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { apiFetch } from "../utils/api";
@@ -20,6 +20,19 @@ const INCIDENT_TYPES = [
   "obstacle",
 ];
 
+// Composant pour capturer les clics sur la carte
+const MapClickHandler = ({ onMapClick, isCreating }) => {
+  useMapEvents({
+    click: (e) => {
+      // N'autorise les clics sur la carte que si nous ne sommes pas déjà en train de créer un incident
+      if (!isCreating) {
+        onMapClick(e.latlng);
+      }
+    },
+  });
+  return null;
+};
+
 const MapView = ({
   incidents: initialIncidents,
   isAdmin = false,
@@ -34,6 +47,12 @@ const MapView = ({
   const [editValues, setEditValues] = useState({});
   const [voteLoadingId, setVoteLoadingId] = useState(null);
   const [error, setError] = useState(null);
+  const [newIncidentPosition, setNewIncidentPosition] = useState(null);
+  const [newIncidentData, setNewIncidentData] = useState({
+    type: INCIDENT_TYPES[0],
+    description: "",
+  });
+  const [isCreating, setIsCreating] = useState(false);
 
   const defaultPosition = [46.603354, 1.8883335];
 
@@ -42,7 +61,13 @@ const MapView = ({
     try {
       const res = await apiFetch(
         `http://localhost:3000/incidents/${id}/${action}`,
-        { method: "PATCH" },
+        { 
+          method: "PATCH",
+          headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        },
         { token, refreshToken, refreshSession, logout }
       );
       if (res.status === 401) {
@@ -112,6 +137,60 @@ const MapView = ({
     }
   };
 
+  const handleMapClick = useCallback((latlng) => {
+    if (!token) {
+      alert("Vous devez être connecté pour signaler un incident");
+      return;
+    }
+    setNewIncidentPosition(latlng);
+    setIsCreating(true);
+  }, [token]);
+
+  const handleCreateIncident = async () => {
+    if (!newIncidentPosition) return;
+    
+    try {
+      setError(null);
+      const res = await apiFetch(
+        "http://localhost:3000/incidents",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...newIncidentData,
+            latitude: newIncidentPosition.lat,
+            longitude: newIncidentPosition.lng,
+          }),
+        },
+        { token, refreshToken, refreshSession, logout }
+      );
+      
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      
+      const created = await res.json();
+      setIncidents((prev) => [...prev, created]);
+      setNewIncidentPosition(null);
+      setNewIncidentData({ type: INCIDENT_TYPES[0], description: "" });
+      setIsCreating(false);
+    } catch (e) {
+      if (e.message && e.message.toLowerCase().includes("session")) {
+        logout();
+      } else {
+        setError(e.message);
+      }
+    }
+  };
+
+  const cancelCreation = () => {
+    setNewIncidentPosition(null);
+    setIsCreating(false);
+    setNewIncidentData({ type: INCIDENT_TYPES[0], description: "" });
+    // Assurez-vous que la popup se ferme correctement
+  };
+
   return (
     <div style={{ height: "100%", width: "100%" }}>
       <MapContainer
@@ -124,6 +203,68 @@ const MapView = ({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <MapClickHandler onMapClick={handleMapClick} isCreating={isCreating} />
+        
+        {/* Marqueur pour le nouvel incident */}
+        {newIncidentPosition && isCreating && (
+          <Marker position={[newIncidentPosition.lat, newIncidentPosition.lng]}>
+            <Popup minWidth={250} closeButton={false} onClose={cancelCreation} autoPan={false}>
+              <h4>Nouvel incident</h4>
+              <select
+                value={newIncidentData.type}
+                onChange={(e) => setNewIncidentData({ ...newIncidentData, type: e.target.value })}
+                style={{ marginBottom: 6, width: "100%" }}
+              >
+                {INCIDENT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={newIncidentData.description}
+                onChange={(e) => setNewIncidentData({ ...newIncidentData, description: e.target.value })}
+                placeholder="Description (optionnelle)"
+                style={{ marginBottom: 6, width: "100%" }}
+              />
+              <div style={{ display: "flex", gap: 8, justifyContent: "space-between", width: "100%" }}>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation(); // Empêche la propagation du clic
+                    handleCreateIncident();
+                  }}
+                  style={{ 
+                    backgroundColor: "#4CAF50", 
+                    color: "white", 
+                    border: "none", 
+                    padding: "8px 12px",
+                    borderRadius: "4px"
+                  }}
+                >
+                  Créer
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation(); // Empêche la propagation du clic
+                    cancelCreation();
+                  }}
+                  style={{ 
+                    backgroundColor: "#f44336", 
+                    color: "white", 
+                    border: "none", 
+                    padding: "8px 12px",
+                    borderRadius: "4px"
+                  }}
+                >
+                  Annuler
+                </button>
+              </div>
+              {error && <p style={{ color: "red", fontSize: 12 }}>{error}</p>}
+            </Popup>
+          </Marker>
+        )}
+        
+        {/* Incidents existants */}
         {incidents &&
           incidents.map((inc) =>
             inc.latitude && inc.longitude ? (

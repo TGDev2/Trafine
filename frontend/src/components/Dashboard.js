@@ -5,6 +5,7 @@ import { io } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 import { apiFetch } from "../utils/api";
 import "../style/Dashboard.css";
+import "../style/Users.css";
 
 const defaultForm = {
   type: "accident",
@@ -27,7 +28,8 @@ export default function Dashboard() {
   const [form, setForm] = useState(defaultForm);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
 
-  const { token, refreshToken, logout, refreshSession, isAdmin, isModerator } = useAuth();
+  const { token, refreshToken, logout, refreshSession, isAdmin, isModerator } =
+    useAuth();
   const socketRef = useRef(null);
 
   const handleIncomingIncident = (incident) =>
@@ -104,9 +106,15 @@ export default function Dashboard() {
       <div className="dashboard-header">
         <h1>Trafine – Interface web</h1>
         <nav>
-          <Link to="/" className="header-link">Incidents</Link>
-          <Link to="/stats" className="header-link">Statistiques</Link>
-          <Link to="/itineraire" className="header-link">Itinéraire</Link>
+          <Link to="/" className="header-link">
+            Incidents
+          </Link>
+          <Link to="/stats" className="header-link">
+            Statistiques
+          </Link>
+          <Link to="/itineraire" className="header-link">
+            Itinéraire
+          </Link>
         </nav>
       </div>
       <div className="dashboard-sidebar">
@@ -116,6 +124,13 @@ export default function Dashboard() {
               Ajouter Incident
             </button>
           </li>
+          {isAdmin && (
+            <li>
+              <Link to="/users" className="menu-btn">
+                Utilisateurs
+              </Link>
+            </li>
+          )}
           <li>
             <button onClick={logout}>Déconnexion</button>
           </li>
@@ -147,9 +162,7 @@ export default function Dashboard() {
                 type="text"
                 placeholder="Latitude"
                 value={form.latitude}
-                onChange={(e) =>
-                  setForm({ ...form, latitude: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, latitude: e.target.value })}
               />
               <input
                 type="text"
