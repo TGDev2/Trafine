@@ -40,7 +40,19 @@ function translateInstruction(instr) {
     .replace("and continue", "et continuer")
     .replace("exit", "sortie")
     .replace("arrive", "arrivée")
-    .replace("arrive at", "arrivée à");
+    .replace("arrive at", "arrivée à")
+    .replace("arrive at the", "arrivée à")
+    .replace("take the", "prendre la")
+    .replace(" 1rst", " première")
+    .replace(" 2nd", " deuxième")
+    .replace(" 3rd", " troisième")
+    .replace(" 4th", " quatrième")
+    .replace(" 5th", " cinquième")
+    .replace(" 6th", " sixième")
+    .replace("on the left", "sur la gauche")
+   .replace("on the right", "sur la droite")
+   .replace("at the end of", "à la fin de")
+   .replace("at the end", "à la fin");
 }
 
 function RouteCalculator({ socket }) {
@@ -355,10 +367,7 @@ function RouteCalculator({ socket }) {
       {qrCode && (
         <div className="qr-section">
           <h4>QR code de partage</h4>
-          <img
-            src={qrCode}
-            alt="QR code itinéraire"
-          />
+          <img src={qrCode} alt="QR code itinéraire" />
           {shareId && (
             <p>
               Lien de partage :{" "}

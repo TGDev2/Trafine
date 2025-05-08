@@ -42,7 +42,13 @@ const MapView = ({
     try {
       const res = await apiFetch(
         `http://localhost:3000/incidents/${id}/${action}`,
-        { method: "PATCH" },
+        { 
+          method: "PATCH",
+          headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        },
         { token, refreshToken, refreshSession, logout }
       );
       if (res.status === 401) {
