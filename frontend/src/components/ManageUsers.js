@@ -1,15 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { apiFetch } from "../utils/api";
+import { Link } from "react-router-dom";
+import "../style/Users.css";
 
 const ROLES = ["user", "moderator", "admin"];
 
-/**
- * Interface d’administration des comptes :
- * – liste paginée des utilisateurs
- * – changement de rôle via un <select>
- * Nécessite un compte admin (contrôlé par la route <AdminRoute>).
- */
 export default function ManageUsers() {
   const { token, refreshToken, refreshSession, logout } = useAuth();
 
@@ -18,7 +14,6 @@ export default function ManageUsers() {
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
-  /* ----------- Chargement initial ----------- */
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -40,7 +35,6 @@ export default function ManageUsers() {
     return () => (mounted = false);
   }, [token, refreshToken, refreshSession, logout]);
 
-  /* ----------- Mise à jour du rôle ----------- */
   const handleRoleChange = async (id, newRole) => {
     setUpdatingId(id);
     try {
@@ -64,14 +58,31 @@ export default function ManageUsers() {
     }
   };
 
-  /* ----------- UI ----------- */
-  if (loading) return <p>Chargement des utilisateurs…</p>;
-  if (error) return <p style={{ color: "crimson" }}>Erreur : {error}</p>;
+  if (loading) return <p className="users-table-container">Chargement des utilisateurs…</p>;
+  if (error) return <p className="users-table-container" style={{ color: "crimson" }}>Erreur : {error}</p>;
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Gestion des utilisateurs</h2>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div className="users-table-container">
+      <h2 className="users-table-title">Gestion des utilisateurs</h2>
+      <Link
+        to="/"
+        className="back-btn"
+        style={{
+          display: "inline-block",
+          marginBottom: "18px",
+          background: "#22313a",
+          color: "#fff",
+          padding: "8px 18px",
+          borderRadius: "4px",
+          textDecoration: "none",
+          border: "1px solid #3d566e",
+          fontWeight: 500,
+          transition: "background 0.2s"
+        }}
+      >
+        ← Retour aux incidents
+      </Link>
+      <table className="users-table">
         <thead>
           <tr>
             <th>ID</th>

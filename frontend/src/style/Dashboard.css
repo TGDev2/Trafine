@@ -104,6 +104,24 @@
   border-radius: 4px;
 }
 
+.menu-btn, .menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: #2c3e50;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.menu-btn:hover, .menu button:hover {
+  background: #34495e;
+}
 .create-btn {
   background-color: #27ae60;
   color: #fff;
