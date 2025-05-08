@@ -11,12 +11,12 @@ import * as cookieParser from 'cookie-parser';
 import * as csurf from 'csurf';
 import { Request, Response, NextFunction } from 'express';
 import { CsrfExceptionFilter } from './common/filters/csrf-exception.filter';
-import * as fs from 'fs'; //  ⬅️  import ajouté
+import * as fs from 'fs';
 import * as path from 'path';
 
 async function bootstrap() {
   /* ------------------------------------------------------------------
-   *  Détermination (optionnelle) du TLS
+   *  TLS (optionnel)
    * -----------------------------------------------------------------*/
   const cfg = new ConfigService();
   const keyPath = cfg.get<string>('TLS_KEY_FILE');
@@ -47,8 +47,7 @@ async function bootstrap() {
   );
 
   /* --------------------------- CORS --------------------------- */
-  const configService = app.get(ConfigService);
-  const allowedOrigins = configService
+  const allowedOrigins = cfg
     .get<string>('ALLOWED_WEB_ORIGINS')!
     .split(',')
     .map((u) => u.trim());
@@ -62,18 +61,23 @@ async function bootstrap() {
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   };
-
   app.enableCors(corsOptions);
 
   /* ---------------- Middlewares de sécurité ---------------- */
   app.use(helmet());
   app.use(cookieParser());
 
-  /* ----------- CSRF protection ----------- */
+  /* ----------------------- CSRF ----------------------------- */
   if (process.env.NODE_ENV !== 'test') {
+    /**
+     * 1. Le **secret** est stocké par `csurf` dans le cookie HTTP-only **`_csrf`**
+     * 2. On expose le **token** (dérivé du secret) au client via un cookie
+     *    accessible JS `XSRF-TOKEN` afin que le front puisse le renvoyer
+     *    dans l’en-tête `X-CSRF-Token`.
+     */
     const csrfMw = csurf({
       cookie: {
-        key: 'XSRF-TOKEN',
+        key: '_csrf',
         httpOnly: true,
         sameSite: 'strict',
         secure: process.env.NODE_ENV === 'production',
@@ -87,25 +91,23 @@ async function bootstrap() {
       const isNavBypass =
         req.path.startsWith('/navigation/share') ||
         req.path.startsWith('/navigation/push');
-      const hasCsrfCookie = req.headers.cookie?.includes('XSRF-TOKEN');
-      if (isAuthRoute || isNavBypass || !hasCsrfCookie) {
-        return next();
-      }
+      if (isAuthRoute || isNavBypass) return next();
       return csrfMw(req, res, next);
     });
-  }
 
-  /* ----------- Injection du token CSRF en cookie XSRF-TOKEN ----------- */
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const tokenFn = (req as any).csrfToken as (() => string) | undefined;
-    if (tokenFn) {
-      res.cookie('XSRF-TOKEN', tokenFn(), {
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
-      });
-    }
-    next();
-  });
+    /* Injecte le token dans le cookie lisible par le client */
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      const tokenFn = (req as any).csrfToken as (() => string) | undefined;
+      if (tokenFn) {
+        res.cookie('XSRF-TOKEN', tokenFn(), {
+          sameSite: 'strict',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+        });
+      }
+      next();
+    });
+  }
 
   /* ---------------- Pipes & filtres globaux ---------------- */
   app.useGlobalPipes(
