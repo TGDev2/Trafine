@@ -105,14 +105,30 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const { initialToken, initialRefresh } = getTokensFromUrl();
 
-  // Initialisation synchrones du state à partir de l’URL ou du localStorage
-  const [token, setToken] = useState(initialToken || storage.get("token"));
-  const [refreshToken, setRefreshToken] = useState(
-    initialRefresh || storage.get("refreshToken")
-  );
-  const [role, setRole] = useState(
-    parseJwt(initialToken || storage.get("token")).role
-  );
+  // Initialisation des states
+  const [token, setToken] = useState(initialToken || null);
+  const [refreshToken, setRefreshToken] = useState(initialRefresh || null);
+  const [role, setRole] = useState(null);
+
+  // Chargement asynchrone des tokens depuis le localStorage
+  useEffect(() => {
+    async function loadTokens() {
+      if (!initialToken) {
+        const storedToken = await storage.get("token");
+        if (storedToken) {
+          setToken(storedToken);
+          setRole(parseJwt(storedToken).role);
+        }
+      }
+      if (!initialRefresh) {
+        const storedRefresh = await storage.get("refreshToken");
+        if (storedRefresh) {
+          setRefreshToken(storedRefresh);
+        }
+      }
+    }
+    loadTokens();
+  }, [initialToken, initialRefresh]);
 
   // Persistance automatique dans le localStorage
   useEffect(() => {
