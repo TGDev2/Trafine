@@ -5,6 +5,7 @@ import Login from "./components/Login";
 import Register from "./components/Register";
 import Stats from "./components/Stats";
 import ManageUsers from "./components/ManageUsers";
+import RouteCalculator from "./components/RouteCalculator";
 import "./App.css";
 import { useAuth } from "./contexts/AuthContext";
 
@@ -28,6 +29,7 @@ export default function App() {
 
   return (
     <div className="App">
+      {/* 
       {showHeader && (
         <header className="App-header">
           <h1>Trafine – Interface web</h1>
@@ -35,10 +37,11 @@ export default function App() {
             <Link to="/">Incidents</Link>
             <Link to="/stats">Statistiques</Link>
             {isAdmin && <Link to="/users">Utilisateurs</Link>}
+            <Link to="/itineraire">Itinéraires</Link>
           </nav>
         </header>
       )}
-
+      */}
       <main>
         <Routes>
           <Route
@@ -63,6 +66,14 @@ export default function App() {
               <AdminRoute>
                 <ManageUsers />
               </AdminRoute>
+            }
+          />
+          <Route
+            path="/itineraire"
+            element={
+              <PrivateRoute>
+                <RouteCalculator />
+              </PrivateRoute>
             }
           />
           <Route path="/login" element={<Login />} />

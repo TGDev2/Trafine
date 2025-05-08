@@ -1,14 +1,50 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import RouteMap from "./RouteMap";
 import { geocode } from "../utils/geocode";
 import { useAuth } from "../contexts/AuthContext";
 import { apiFetch } from "../utils/api";
+import "../style/routeCalculator.css";
 
-/**
- * @param {{socket?: import("socket.io-client").Socket}} props
- */
+// Fonction de traduction des instructions
+function translateInstruction(instr) {
+  return instr
+    .replace("Head southwest", "Prendre la direction sud-ouest")
+    .replace("Head northeast", "Prendre la direction nord-est")
+    .replace("Head north", "Prendre la direction nord")
+    .replace("Head south", "Prendre la direction sud")
+    .replace("Head east", "Prendre la direction est")
+    .replace("Head west", "Prendre la direction ouest")
+    .replace("Turn right", "Tourner à droite")
+    .replace("Turn left", "Tourner à gauche")
+    .replace("Keep left", "Rester à gauche")
+    .replace("Keep right", "Rester à droite")
+    .replace("Continue", "Continuer")
+    .replace("onto", "sur")
+    .replace("at", "à")
+    .replace("the roundabout", "au rond-point")
+    .replace("Take the exit", "Prendre la sortie")
+    .replace("Continue straight", "Continuer tout droit")
+    .replace("Continue onto", "Continuer sur")
+    .replace("Continue on", "Continuer sur")
+    .replace("Turn slight left", "Tourner légèrement à gauche")
+    .replace("Turn slight right", "Tourner légèrement à droite")
+    .replace("Turn sharp left", "Tourner à gauche")
+    .replace("Turn sharp right", "Tourner à droite")
+    .replace("Continue straight onto", "Continuer tout droit sur")
+    .replace("Continue straight on", "Continuer tout droit sur")
+    .replace("Continue straight ahead", "Continuer tout droit")
+    .replace("Continue straight", "Continuer tout droit")
+    .replace("Continue along", "Continuer le long de")
+    .replace("Continue for", "Continuer pendant")
+    .replace("and continue", "et continuer")
+    .replace("exit", "sortie")
+    .replace("arrive", "arrivée")
+    .replace("arrive at", "arrivée à");
+}
+
 function RouteCalculator({ socket }) {
-  /* ---------------------------  State  --------------------------- */
+  // ---------------------------  State  ---------------------------
   const [sourceInput, setSourceInput] = useState("");
   const [destinationInput, setDestinationInput] = useState("");
   const [sourceCoords, setSourceCoords] = useState(null);
@@ -28,10 +64,11 @@ function RouteCalculator({ socket }) {
   const [pushMessage, setPushMessage] = useState(null);
 
   const { token, refreshToken, refreshSession, logout } = useAuth();
+  const navigate = useNavigate();
 
-  /* --------------------------------------------------------------- */
-  /*  Calcul d’itinéraire (extrait dans une callback réutilisable)   */
-  /* --------------------------------------------------------------- */
+  // ---------------------------------------------------------------
+  //  Calcul d’itinéraire (extrait dans une callback réutilisable)
+  // ---------------------------------------------------------------
   const handleCalculateRoute = useCallback(
     async ({ silent = false } = {}) => {
       const coordRegex = /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/;
@@ -60,13 +97,19 @@ function RouteCalculator({ socket }) {
             body: JSON.stringify({ source: src, destination: dst, avoidTolls }),
           }
         );
-        if (!response.ok) throw new Error("Erreur lors du calcul d'itinéraire");
+        // Correction : gestion d'erreur serveur
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(
+            `Erreur lors du calcul d'itinéraire (${response.status}): ${text}`
+          );
+        }
 
         const data = await response.json();
         const calculatedRoutes = data.routes || [];
         setRoutes(calculatedRoutes);
 
-        /* (Re)abonnement pour la première alternative */
+        // (Re)abonnement pour la première alternative
         if (socket && calculatedRoutes.length > 0) {
           const firstGeometry = calculatedRoutes[0].geometry;
           if (firstGeometry?.type === "LineString") {
@@ -89,9 +132,9 @@ function RouteCalculator({ socket }) {
     [sourceInput, destinationInput, avoidTolls, socket]
   );
 
-  /* ----------------------------------------------
-   *  Recalcul automatique sur « incidentAlert »
-   * --------------------------------------------- */
+  // ----------------------------------------------
+  //  Recalcul automatique sur « incidentAlert »
+  // ---------------------------------------------
   useEffect(() => {
     if (!socket) return;
     let lastRun = 0;
@@ -109,7 +152,7 @@ function RouteCalculator({ socket }) {
     return () => socket.off("incidentAlert", onIncidentAlert);
   }, [socket, routes, handleCalculateRoute]);
 
-  /* --------------------------  QR Share  -------------------------- */
+  // --------------------------  QR Share  --------------------------
   const handleShare = async () => {
     if (!sourceCoords || !destCoords) {
       setError("Vous devez d’abord calculer un itinéraire valide.");
@@ -132,7 +175,6 @@ function RouteCalculator({ socket }) {
         throw new Error("Erreur lors de la génération du QR code");
 
       const data = await response.json();
-      // On reçoit maintenant qrCode et shareId
       setQrCode(data.qrCode);
       setShareId(data.shareId);
     } catch (err) {
@@ -142,9 +184,7 @@ function RouteCalculator({ socket }) {
     }
   };
 
-  /**
-   * Envoi direct de l’itinéraire au mobile via l’API /navigation/push
-   */
+  // Envoi direct de l’itinéraire au mobile via l’API /navigation/push
   const handlePush = async () => {
     if (!sourceCoords || !destCoords) {
       setError("Vous devez d’abord calculer un itinéraire valide.");
@@ -180,16 +220,25 @@ function RouteCalculator({ socket }) {
     }
   };
 
-  /* --------------------------  Render  ---------------------------- */
+  // --------------------------  Render  ----------------------------
   return (
-    <div
-      style={{
-        marginBottom: "20px",
-        padding: "15px",
-        border: "1px solid #ddd",
-        borderRadius: "4px",
-      }}
-    >
+    <div className="route-calc-container">
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        style={{
+          marginBottom: "18px",
+          background: "#eee",
+          color: "#2c3e50",
+          border: "none",
+          borderRadius: "6px",
+          padding: "8px 16px",
+          cursor: "pointer",
+          fontWeight: 500,
+        }}
+      >
+        ← Retour aux incidents
+      </button>
       <h2>Calculateur d’itinéraire</h2>
 
       {/* -------  Formulaire ------- */}
@@ -200,7 +249,7 @@ function RouteCalculator({ socket }) {
         }}
       >
         {/* Source */}
-        <div style={{ marginBottom: "10px" }}>
+        <div>
           <label style={{ marginRight: "10px" }}>Point de départ :</label>
           <input
             type="text"
@@ -212,7 +261,7 @@ function RouteCalculator({ socket }) {
         </div>
 
         {/* Destination */}
-        <div style={{ marginBottom: "10px" }}>
+        <div>
           <label style={{ marginRight: "10px" }}>Destination :</label>
           <input
             type="text"
@@ -224,7 +273,7 @@ function RouteCalculator({ socket }) {
         </div>
 
         {/* Options */}
-        <div style={{ marginBottom: "10px" }}>
+        <div>
           <label>
             <input
               type="checkbox"
@@ -241,11 +290,11 @@ function RouteCalculator({ socket }) {
         </button>
       </form>
 
-      {error && <p style={{ color: "red" }}>Erreur : {error}</p>}
+      {error && <p className="error-msg">Erreur : {error}</p>}
 
       {/* -------  Résultats ------- */}
       {routes && routes.length > 0 && (
-        <div style={{ marginTop: "15px" }}>
+        <div className="route-result">
           <RouteMap routes={routes} />
           <h3>Itinéraire(s) calculé(s)</h3>
           {routes.map((rt, idx) => (
@@ -273,7 +322,7 @@ function RouteCalculator({ socket }) {
               </p>
               <ul>
                 {rt.instructions.map((instr, i) => (
-                  <li key={i}>{instr}</li>
+                  <li key={i}>{translateInstruction(instr)}</li>
                 ))}
               </ul>
             </div>
@@ -290,7 +339,7 @@ function RouteCalculator({ socket }) {
           >
             {pushLoading ? "Envoi en cours…" : "Envoyer sur mobile"}
           </button>
-          {pushMessage && <p style={{ color: "green" }}>{pushMessage}</p>}
+          {pushMessage && <p className="success-msg">{pushMessage}</p>}
 
           <button
             onClick={handleShare}
@@ -304,12 +353,11 @@ function RouteCalculator({ socket }) {
 
       {/* -------  QR code de partage ------- */}
       {qrCode && (
-        <div style={{ marginTop: "15px" }}>
+        <div className="qr-section">
           <h4>QR code de partage</h4>
           <img
             src={qrCode}
             alt="QR code itinéraire"
-            style={{ maxWidth: "200px" }}
           />
           {shareId && (
             <p>

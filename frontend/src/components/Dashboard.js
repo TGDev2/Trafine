@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import MapView from "./MapView";
-import RouteCalculator from "./RouteCalculator";
 import { io } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 import { apiFetch } from "../utils/api";
+import "../style/Dashboard.css";
 
 const defaultForm = {
   type: "accident",
@@ -22,16 +23,13 @@ const INCIDENT_TYPES = [
 export default function Dashboard() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [voteLoadingId, setVoteLoadingId] = useState(null);
   const [error, setError] = useState(null);
   const [form, setForm] = useState(defaultForm);
-  const [editingId, setEditingId] = useState(null);
-  const [editValues, setEditValues] = useState({});
-  const { token, refreshToken, logout, refreshSession, isAdmin, isModerator } =
-    useAuth();
+  const [showIncidentForm, setShowIncidentForm] = useState(false);
+
+  const { token, refreshToken, logout, refreshSession, isAdmin, isModerator } = useAuth();
   const socketRef = useRef(null);
 
-  /* ---------------- WebSocket ---------------- */
   const handleIncomingIncident = (incident) =>
     setIncidents((prev) => {
       const idx = prev.findIndex((i) => i.id === incident.id);
@@ -53,7 +51,6 @@ export default function Dashboard() {
     };
   }, [token]);
 
-  /* ---------------- Initial fetch inline ---------------- */
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -76,25 +73,6 @@ export default function Dashboard() {
     };
   }, [token, refreshToken, refreshSession, logout]);
 
-  /* ---------------- Vote helpers ---------------- */
-  const voteIncident = async (id, action) => {
-    setVoteLoadingId(id);
-    try {
-      const res = await apiFetch(
-        `http://localhost:3000/incidents/${id}/${action}`,
-        { method: "PATCH" },
-        { token, refreshToken, refreshSession, logout }
-      );
-      const updated = await res.json();
-      setIncidents((p) => p.map((i) => (i.id === id ? updated : i)));
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setVoteLoadingId(null);
-    }
-  };
-
-  /* ---------------- CRUD helpers ---------------- */
   const handleCreateIncident = async () => {
     try {
       const res = await apiFetch(
@@ -111,194 +89,94 @@ export default function Dashboard() {
         { token, refreshToken, refreshSession, logout }
       );
       const created = await res.json();
-      setIncidents((p) => [...p, created]);
+      setIncidents((prev) => [...prev, created]);
       setForm(defaultForm);
+      setShowIncidentForm(false);
     } catch (e) {
       setError(e.message);
     }
   };
 
-  const handleUpdateIncident = async (id) => {
-    try {
-      const res = await apiFetch(
-        `http://localhost:3000/incidents/${id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(editValues),
-        },
-        { token, refreshToken, refreshSession, logout }
-      );
-      const updated = await res.json();
-      setIncidents((p) => p.map((i) => (i.id === id ? updated : i)));
-      setEditingId(null);
-      setEditValues({});
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  const handleDeleteIncident = async (id) => {
-    if (!window.confirm("Supprimer définitivement cet incident ?")) return;
-    try {
-      await apiFetch(
-        `http://localhost:3000/incidents/${id}`,
-        { method: "DELETE" },
-        { token, refreshToken, refreshSession, logout }
-      );
-      setIncidents((p) => p.filter((i) => i.id !== id));
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  if (loading) return <p>Chargement…</p>;
+  if (loading) return <p className="loading">Chargement…</p>;
 
   return (
-    <div style={{ padding: 20 }}>
-      <header style={{ display: "flex", justifyContent: "space-between" }}>
-        <h1>Interface de Gestion Trafine</h1>
-        {token && (
-          <button onClick={logout} style={{ height: 30 }}>
-            Déconnexion
-          </button>
-        )}
-      </header>
-
-      {(isModerator || isAdmin) && (
-        <section style={{ margin: "20px 0" }}>
-          <h2>Créer un incident</h2>
-          {error && <p style={{ color: "red" }}>{error}</p>}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <select
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-            >
-              {INCIDENT_TYPES.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-            <input
-              placeholder="Description"
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-              style={{ flex: 1 }}
-            />
-            <input
-              placeholder="Latitude"
-              value={form.latitude}
-              onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-              style={{ width: 110 }}
-            />
-            <input
-              placeholder="Longitude"
-              value={form.longitude}
-              onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-              style={{ width: 110 }}
-            />
-            <button onClick={handleCreateIncident}>Créer</button>
-          </div>
-        </section>
-      )}
-
-      <MapView incidents={incidents} />
-
-      <h2>Incidents</h2>
-      {incidents.length === 0 ? (
-        <p>Aucun incident.</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {incidents.map((inc) => (
-            <li
-              key={inc.id}
-              style={{
-                marginBottom: 10,
-                border: "1px solid #ddd",
-                padding: 10,
-                borderRadius: 4,
-              }}
-            >
-              {editingId === inc.id ? (
-                <>
-                  <input
-                    value={editValues.type ?? inc.type}
-                    onChange={(e) =>
-                      setEditValues({ ...editValues, type: e.target.value })
-                    }
-                    style={{ marginBottom: 6 }}
-                  />
-                  <input
-                    value={editValues.description ?? inc.description}
-                    onChange={(e) =>
-                      setEditValues({
-                        ...editValues,
-                        description: e.target.value,
-                      })
-                    }
-                    style={{ marginBottom: 6, width: "60%" }}
-                  />
-                  <button onClick={() => handleUpdateIncident(inc.id)}>
-                    Enregistrer
-                  </button>
-                  <button onClick={() => setEditingId(null)}>Annuler</button>
-                </>
-              ) : (
-                <>
-                  <p style={{ margin: 0 }}>
-                    <strong>{inc.type}</strong> —{" "}
-                    {inc.description || "Sans description"}
-                  </p>
-                  <p style={{ margin: "4px 0" }}>
-                    Confirmé : {inc.confirmed ? "Oui" : "Non"} | Infirmé :{" "}
-                    {inc.denied ? "Oui" : "Non"}
-                  </p>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      onClick={() => voteIncident(inc.id, "confirm")}
-                      disabled={voteLoadingId === inc.id || inc.confirmed}
-                    >
-                      Confirmer
-                    </button>
-                    <button
-                      onClick={() => voteIncident(inc.id, "deny")}
-                      disabled={voteLoadingId === inc.id || inc.denied}
-                    >
-                      Infirmer
-                    </button>
-                    {(isModerator || isAdmin) && (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditingId(inc.id);
-                            setEditValues({
-                              type: inc.type,
-                              description: inc.description,
-                            });
-                          }}
-                        >
-                          Modifier
-                        </button>
-                        {isAdmin && (
-                          <button
-                            style={{ color: "red" }}
-                            onClick={() => handleDeleteIncident(inc.id)}
-                          >
-                            Supprimer
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </li>
-          ))}
+    <div className="dashboard-layout">
+      <div className="dashboard-header">
+        <h1>Trafine – Interface web</h1>
+        <nav>
+          <Link to="/" className="header-link">Incidents</Link>
+          <Link to="/stats" className="header-link">Statistiques</Link>
+          <Link to="/itineraire" className="header-link">Itinéraire</Link>
+        </nav>
+      </div>
+      <div className="dashboard-sidebar">
+        <ul className="menu">
+          <li>
+            <button onClick={() => setShowIncidentForm(!showIncidentForm)}>
+              Ajouter Incident
+            </button>
+          </li>
+          <li>
+            <button onClick={logout}>Déconnexion</button>
+          </li>
         </ul>
-      )}
-
-      <RouteCalculator socket={socketRef.current} />
+        {showIncidentForm && (isModerator || isAdmin) && (
+          <div className="incident-form">
+            <h2>Créer un incident</h2>
+            {error && <p className="error-msg">{error}</p>}
+            <div className="form-inputs">
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+              >
+                {INCIDENT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Description"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+              />
+              <input
+                type="text"
+                placeholder="Latitude"
+                value={form.latitude}
+                onChange={(e) =>
+                  setForm({ ...form, latitude: e.target.value })
+                }
+              />
+              <input
+                type="text"
+                placeholder="Longitude"
+                value={form.longitude}
+                onChange={(e) =>
+                  setForm({ ...form, longitude: e.target.value })
+                }
+              />
+              <button onClick={handleCreateIncident} className="create-btn">
+                Créer
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="dashboard-main">
+        <MapView
+          incidents={incidents}
+          isAdmin={isAdmin}
+          isModerator={isModerator}
+          token={token}
+          refreshToken={refreshToken}
+          refreshSession={refreshSession}
+          logout={logout}
+        />
+      </div>
     </div>
   );
 }

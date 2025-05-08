@@ -1,0 +1,127 @@
+/* Conteneur principal du calculateur d’itinéraire */
+.route-calc-container {
+  max-width: 1400px;
+  min-width: 500px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(44, 62, 80, 0.13);
+  padding: 48px 40px 40px 40px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* Titre */
+.route-calc-container h2 {
+  margin-top: 0;
+  font-size: 2.2rem;
+  color: #2c3e50;
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+/* Formulaire */
+.route-calc-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.route-calc-container label {
+  font-weight: 500;
+  color: #34495e;
+}
+
+.route-calc-container input[type="text"] {
+  padding: 12px 14px;
+  border: 1.5px solid #dbe2ef;
+  border-radius: 7px;
+  font-size: 1.08rem;
+  background: #f7fafd;
+  transition: border 0.2s;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.route-calc-container input[type="text"]:focus {
+  border: 1.5px solid #2980b9;
+  outline: none;
+}
+
+.route-calc-container input[type="checkbox"] {
+  accent-color: #2980b9;
+}
+
+/* Boutons */
+.route-calc-container button {
+  background: linear-gradient(90deg, #2980b9 0%, #6dd5fa 100%);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 13px 0;
+  font-size: 1.13rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.07);
+}
+
+.route-calc-container button:disabled {
+  background: #b2bec3;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Résultat et carte */
+.route-calc-container .route-result {
+  margin-top: 32px;
+  background: #f7fafd;
+  border-radius: 10px;
+  padding: 22px 18px;
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.06);
+}
+
+.route-calc-container .route-result h3 {
+  margin-top: 0;
+  color: #2980b9;
+}
+
+.route-calc-container ul {
+  padding-left: 22px;
+}
+
+/* Agrandir la carte */
+.route-result .leaflet-container {
+  height: 400px !important;
+  min-height: 400px;
+  width: 100% !important;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+/* QR code section */
+.route-calc-container .qr-section {
+  margin-top: 32px;
+  text-align: center;
+}
+
+.route-calc-container .qr-section img {
+  margin: 0 auto;
+  display: block;
+  max-width: 200px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.09);
+}
+
+/* Messages */
+.route-calc-container .success-msg {
+  color: #27ae60;
+  font-weight: 500;
+  margin-top: 12px;
+}
+
+.route-calc-container .error-msg {
+  color: #e74c3c;
+  font-weight: 500;
+  margin-top: 12px;
+}
