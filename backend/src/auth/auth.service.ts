@@ -13,7 +13,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
-  ) {}
+  ) { }
 
   /* --------  VALIDATION CREDENTIALS (local strategy)  -------- */
   async validateUser(

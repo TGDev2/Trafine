@@ -75,14 +75,23 @@ function parseJwt(token) {
     const decodedPayload = JSON.parse(atob(b64));
     
     // Vérification de l'expiration
-    if (decodedPayload.exp && Date.now() >= decodedPayload.exp * 1000) {
-      throw new Error("Token expiré");
+    if (decodedPayload.exp) {
+      const expirationTime = decodedPayload.exp * 1000;
+      const timeUntilExpiry = expirationTime - Date.now();
+      
+      // Si le token est expiré
+      if (timeUntilExpiry <= 0) {
+        throw new Error("Token expiré");
+      }
     }
     
     return decodedPayload;
   } catch (error) {
-    console.error("Erreur d'analyse du token JWT:", error);
-    return {};
+    // On ne log plus l'erreur si c'est juste une expiration
+    if (error.message !== "Token expiré") {
+      console.error("Erreur d'analyse du token JWT:", error);
+    }
+    throw error;
   }
 }
 
@@ -109,44 +118,6 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(initialToken || null);
   const [refreshToken, setRefreshToken] = useState(initialRefresh || null);
   const [role, setRole] = useState(null);
-
-  // Chargement asynchrone des tokens depuis le localStorage
-  useEffect(() => {
-    async function loadTokens() {
-      if (!initialToken) {
-        const storedToken = await storage.get("token");
-        if (storedToken) {
-          setToken(storedToken);
-          setRole(parseJwt(storedToken).role);
-        }
-      }
-      if (!initialRefresh) {
-        const storedRefresh = await storage.get("refreshToken");
-        if (storedRefresh) {
-          setRefreshToken(storedRefresh);
-        }
-      }
-    }
-    loadTokens();
-  }, [initialToken, initialRefresh]);
-
-  // Persistance automatique dans le localStorage
-  useEffect(() => {
-    if (token) storage.set("token", token);
-    else storage.set("token", null);
-  }, [token]);
-  useEffect(() => {
-    if (refreshToken) storage.set("refreshToken", refreshToken);
-    else storage.set("refreshToken", null);
-  }, [refreshToken]);
-
-  // Nettoyage de l’URL (on enlève les ?token=…&refreshToken=…)
-  useEffect(() => {
-    if (initialToken && initialRefresh && typeof window !== "undefined") {
-      const clean = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, document.title, clean);
-    }
-  }, [initialToken, initialRefresh]);
 
   /* ----------  Fonctions de gestion du token ---------- */
   const applyToken = (newToken, newRefresh) => {
@@ -177,8 +148,84 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error("Refresh failed");
     const { access_token, refresh_token } = await res.json();
     applyToken(access_token, refresh_token);
-    return access_token;
+    return { access_token, refresh_token };
   };
+
+  // Chargement asynchrone des tokens depuis le localStorage
+  const loadTokens = async () => {
+    if (!initialToken) {
+      const storedToken = await storage.get("token");
+      if (storedToken) {
+        try {
+          const payload = parseJwt(storedToken);
+          // Si le token est proche de l'expiration (moins de 5 minutes), on le rafraîchit
+          const expirationTime = payload.exp * 1000;
+          const timeUntilExpiry = expirationTime - Date.now();
+          if (timeUntilExpiry < 300000) { // 5 minutes en millisecondes
+            const storedRefresh = await storage.get("refreshToken");
+            if (storedRefresh) {
+              const { access_token, refresh_token } = await refreshSession();
+              setToken(access_token);
+              setRefreshToken(refresh_token);
+              setRole(parseJwt(access_token).role);
+              return;
+            }
+          } else {
+            setToken(storedToken);
+            setRole(payload.role);
+          }
+        } catch (error) {
+          // Si le token est invalide ou expiré, on essaie de le rafraîchir
+          const storedRefresh = await storage.get("refreshToken");
+          if (storedRefresh) {
+            try {
+              const { access_token, refresh_token } = await refreshSession();
+              setToken(access_token);
+              setRefreshToken(refresh_token);
+              setRole(parseJwt(access_token).role);
+              return;
+            } catch (refreshError) {
+              // Si le rafraîchissement échoue, on nettoie les tokens
+              await storage.set("token", null);
+              await storage.set("refreshToken", null);
+              setToken(null);
+              setRefreshToken(null);
+              setRole(null);
+            }
+          }
+        }
+      }
+    }
+    if (!initialRefresh) {
+      const storedRefresh = await storage.get("refreshToken");
+      if (storedRefresh) {
+        setRefreshToken(storedRefresh);
+      }
+    }
+  };
+
+  // Appel initial de loadTokens
+  useEffect(() => {
+    loadTokens();
+  }, [initialToken, initialRefresh]);
+
+  // Persistance automatique dans le localStorage
+  useEffect(() => {
+    if (token) storage.set("token", token);
+    else storage.set("token", null);
+  }, [token]);
+  useEffect(() => {
+    if (refreshToken) storage.set("refreshToken", refreshToken);
+    else storage.set("refreshToken", null);
+  }, [refreshToken]);
+
+  // Nettoyage de l’URL (on enlève les ?token=…&refreshToken=…)
+  useEffect(() => {
+    if (initialToken && initialRefresh && typeof window !== "undefined") {
+      const clean = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, clean);
+    }
+  }, [initialToken, initialRefresh]);
 
   return (
     <AuthContext.Provider
