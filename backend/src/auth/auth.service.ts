@@ -67,23 +67,40 @@ export class AuthService {
   }
 
   async validateOAuthLogin(provider: string, profile: any) {
-    const email =
-      profile.emails && profile.emails.length ? profile.emails[0].value : null;
-    const displayName =
+    // Validation du fournisseur OAuth
+    if (!['google'].includes(provider)) {
+      throw new Error('Fournisseur OAuth non supporté');
+    }
+
+    // Extraction et validation de l'email
+    const email = profile.emails?.[0]?.value?.toLowerCase();
+    if (email && !email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
+      throw new Error('Format d\'email invalide');
+    }
+
+    // Construction du nom d'affichage sécurisé
+    const displayName = (
       profile.displayName ||
       (profile.name
         ? `${profile.name.givenName} ${profile.name.familyName}`
-        : null);
+        : null)
+    )?.slice(0, 100); // Limite la longueur pour éviter les attaques par dépassement
 
-    const oauthId = profile.id;
+    // Validation de l'ID OAuth
+    if (!profile.id || typeof profile.id !== 'string') {
+      throw new Error('ID OAuth invalide');
+    }
+
+    // Création ou récupération de l'utilisateur avec les données validées
     const user = await this.userService.findOrCreateOAuthUser(
       provider,
-      oauthId,
+      profile.id,
       email,
       displayName,
     );
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...safe } = user;
+
+    // On ne renvoie jamais le mot de passe
+    const { password, refreshTokenHash, ...safe } = user;
     return safe;
   }
 
