@@ -12,6 +12,38 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
+// Définition des icônes personnalisées pour chaque type d'incident
+const getCustomIcon = (type) => {
+  let iconUrl;
+  
+  switch(type) {
+    case 'accident':
+      iconUrl = '/accident.png';
+      break;
+    case 'embouteillage':
+      iconUrl = '/embouteillage.png';
+      break;
+    case 'obstacle':
+      iconUrl = '/obstacle.png';
+      break;
+    case 'contrôle policier':
+      iconUrl = '/police.png';
+      break;
+    case 'route fermée':
+      iconUrl = '/route.png';
+      break;
+    default:
+      iconUrl = require("leaflet/dist/images/marker-icon.png");
+  }
+  
+  return L.icon({
+    iconUrl: iconUrl,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+  });
+};
+
 const INCIDENT_TYPES = [
   "accident",
   "embouteillage",
@@ -207,12 +239,18 @@ const MapView = ({
         
         {/* Marqueur pour le nouvel incident */}
         {newIncidentPosition && isCreating && (
-          <Marker position={[newIncidentPosition.lat, newIncidentPosition.lng]}>
+          <Marker 
+            position={[newIncidentPosition.lat, newIncidentPosition.lng]}
+            icon={getCustomIcon(newIncidentData.type)}
+          >
             <Popup minWidth={250} closeButton={false} onClose={cancelCreation} autoPan={false}>
               <h4>Nouvel incident</h4>
               <select
                 value={newIncidentData.type}
-                onChange={(e) => setNewIncidentData({ ...newIncidentData, type: e.target.value })}
+                onChange={(e) => {
+                  setNewIncidentData({ ...newIncidentData, type: e.target.value });
+                  // Force le rendu pour mettre à jour l'icône
+                }}
                 style={{ marginBottom: 6, width: "100%" }}
               >
                 {INCIDENT_TYPES.map((t) => (
@@ -271,6 +309,7 @@ const MapView = ({
               <Marker
                 key={inc.id}
                 position={[inc.latitude, inc.longitude]}
+                icon={getCustomIcon(inc.type)}
               >
                 <Popup minWidth={250}>
                   {editingId === inc.id ? (
