@@ -40,7 +40,53 @@ function translateInstruction(instr) {
     .replace("and continue", "et continuer")
     .replace("exit", "sortie")
     .replace("arrive", "arrivée")
-    .replace("arrive at", "arrivée à");
+    .replace("arrive at", "arrivée à")
+    .replace("arrive at the", "arrivée à")
+    .replace("take the", "prendre la")
+    .replace(" 1rst", " première")
+    .replace(" 2nd", " deuxième")
+    .replace(" 3rd", " troisième")
+    .replace(" 4th", " quatrième")
+    .replace(" 5th", " cinquième")
+    .replace(" 6th", " sixième")
+    .replace("on the left", "sur la gauche")
+   .replace("on the right", "sur la droite")
+   .replace("at the end of", "à la fin de")
+   .replace("at the end", "à la fin");
+}
+
+// Fonction pour formater la durée en français
+function formatDuration(duration) {
+  // Vérifier si duration est un nombre valide ou une chaîne qui peut être convertie en nombre
+  if (duration === null || duration === undefined) {
+    return "Durée inconnue";
+  }
+  
+  // Convertir en nombre si c'est une chaîne
+  const durationNum = parseFloat(duration);
+  
+  // Vérifier si la conversion a réussi
+  if (isNaN(durationNum)) {
+    return "Durée inconnue";
+  }
+  
+  const minutes = Math.floor(durationNum % 60);
+  const hours = Math.floor((durationNum / 60) % 24);
+  const days = Math.floor(durationNum / (60 * 24));
+
+  const parts = [];
+  
+  if (days > 0) {
+    parts.push(`${days} jour${days > 1 ? 's' : ''}`);
+  }
+  if (hours > 0) {
+    parts.push(`${hours} heure${hours > 1 ? 's' : ''}`);
+  }
+  if (minutes > 0 || parts.length === 0) {
+    parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+  }
+
+  return parts.join(' et ');
 }
 
 function RouteCalculator({ socket }) {
@@ -67,7 +113,7 @@ function RouteCalculator({ socket }) {
   const navigate = useNavigate();
 
   // ---------------------------------------------------------------
-  //  Calcul d’itinéraire (extrait dans une callback réutilisable)
+  //  Calcul d'itinéraire (extrait dans une callback réutilisable)
   // ---------------------------------------------------------------
   const handleCalculateRoute = useCallback(
     async ({ silent = false } = {}) => {
@@ -155,7 +201,7 @@ function RouteCalculator({ socket }) {
   // --------------------------  QR Share  --------------------------
   const handleShare = async () => {
     if (!sourceCoords || !destCoords) {
-      setError("Vous devez d’abord calculer un itinéraire valide.");
+      setError("Vous devez d'abord calculer un itinéraire valide.");
       return;
     }
     setQrLoading(true);
@@ -184,10 +230,10 @@ function RouteCalculator({ socket }) {
     }
   };
 
-  // Envoi direct de l’itinéraire au mobile via l’API /navigation/push
+  // Envoi direct de l'itinéraire au mobile via l'API /navigation/push
   const handlePush = async () => {
     if (!sourceCoords || !destCoords) {
-      setError("Vous devez d’abord calculer un itinéraire valide.");
+      setError("Vous devez d'abord calculer un itinéraire valide.");
       return;
     }
     setPushLoading(true);
@@ -239,7 +285,7 @@ function RouteCalculator({ socket }) {
       >
         ← Retour aux incidents
       </button>
-      <h2>Calculateur d’itinéraire</h2>
+      <h2>Calculateur d'itinéraire</h2>
 
       {/* -------  Formulaire ------- */}
       <form
@@ -300,31 +346,71 @@ function RouteCalculator({ socket }) {
           {routes.map((rt, idx) => (
             <div
               key={idx}
+              className="route-card"
               style={{
-                marginBottom: "15px",
-                border: "1px solid #ccc",
-                padding: "10px",
-                borderRadius: "4px",
+                marginBottom: "20px",
+                background: "white",
+                borderRadius: "12px",
+                padding: "20px",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.1)"
               }}
             >
-              <p>
-                <strong>Distance :</strong> {rt.distance}
-              </p>
-              <p>
-                <strong>Durée :</strong> {rt.duration}
-              </p>
-              <p>
-                <strong>Type :</strong>{" "}
-                {rt.recalculated ? "Recalculé" : "Optimal"}
-              </p>
-              <p>
-                <strong>Instructions :</strong>
-              </p>
-              <ul>
+              <div className="route-header" style={{ 
+                display: "flex", 
+                justifyContent: "space-between",
+                marginBottom: "15px",
+                padding: "0 0 15px 0",
+                borderBottom: "1px solid #eee"
+              }}>
+                <div>
+                  <h4 style={{ margin: "0 0 5px 0", color: "#2c3e50" }}>
+                    {idx === 0 ? "Itinéraire recommandé" : `Alternative ${idx + 1}`}
+                  </h4>
+                  <span style={{ color: "#7f8c8d" }}>
+                    {rt.distance} • {(() => {
+                      console.log("Type de durée:", typeof rt.duration, "Valeur:", rt.duration);
+                      return formatDuration(rt.duration);
+                    })()}
+                  </span>
+                </div>
+                <div style={{ 
+                  padding: "4px 12px",
+                  borderRadius: "15px",
+                  background: rt.recalculated ? "#fff3cd" : "#d4edda",
+                  color: rt.recalculated ? "#856404" : "#155724",
+                  fontSize: "0.9em"
+                }}>
+                  {rt.recalculated ? "Recalculé" : "Optimal"}
+                </div>
+              </div>
+              
+              <div className="route-instructions">
                 {rt.instructions.map((instr, i) => (
-                  <li key={i}>{translateInstruction(instr)}</li>
+                  <div key={i} style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    padding: "12px 0",
+                    borderBottom: i < rt.instructions.length - 1 ? "1px solid #f5f6fa" : "none"
+                  }}>
+                    <div style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      background: "#f1f2f6",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: "15px",
+                      flexShrink: 0
+                    }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      {translateInstruction(instr)}
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           ))}
 
@@ -346,30 +432,30 @@ function RouteCalculator({ socket }) {
             disabled={qrLoading}
             style={{ marginTop: "10px", padding: "8px 12px" }}
           >
-            {qrLoading ? "Génération du QR code…" : "Partager l’itinéraire"}
+            {qrLoading ? "Génération du QR code…" : "Partager l'itinéraire"}
           </button>
-        </div>
-      )}
-
-      {/* -------  QR code de partage ------- */}
-      {qrCode && (
-        <div className="qr-section">
-          <h4>QR code de partage</h4>
-          <img
-            src={qrCode}
-            alt="QR code itinéraire"
-          />
-          {shareId && (
-            <p>
-              Lien de partage :{" "}
-              <a
-                href={`/share/${shareId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {window.location.origin}/share/{shareId}
-              </a>
-            </p>
+          
+          {/* -------  QR code de partage ------- */}
+          {qrCode && (
+            <div className="qr-section">
+              <h4>QR code de partage</h4>
+              <img
+                src={qrCode}
+                alt="QR code itinéraire"
+              />
+              {shareId && (
+                <p>
+                  Lien de partage :{" "}
+                  <a
+                    href={`/share/${shareId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {window.location.origin}/share/{shareId}
+                  </a>
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
