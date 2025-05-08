@@ -1,22 +1,87 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 /* ----------------  Helpers ---------------- */
+const ENCRYPTION_KEY = "0123456789ABCDEF0123456789ABCDEF"; // Clé AES-256 (32 caractères)
+
 const storage = {
-  get: (k) => (typeof window !== "undefined" ? localStorage.getItem(k) : null),
-  set: (k, v) =>
-    typeof window !== "undefined"
-      ? v
-        ? localStorage.setItem(k, v)
-        : localStorage.removeItem(k)
-      : undefined,
+  encrypt: (text) => {
+    if (typeof window === "undefined") return text;
+    const iv = window.crypto.getRandomValues(new Uint8Array(16));
+    const key = new TextEncoder().encode(ENCRYPTION_KEY);
+    return window.crypto.subtle
+      .importKey("raw", key, { name: "AES-CBC" }, false, ["encrypt"])
+      .then((cryptoKey) =>
+        window.crypto.subtle.encrypt(
+          { name: "AES-CBC", iv },
+          cryptoKey,
+          new TextEncoder().encode(text)
+        )
+      )
+      .then((encrypted) => {
+        const encryptedArray = new Uint8Array(encrypted);
+        return `${btoa(String.fromCharCode(...iv))}:${btoa(
+          String.fromCharCode(...encryptedArray)
+        )}`;
+      });
+  },
+  decrypt: async (encryptedData) => {
+    if (typeof window === "undefined" || !encryptedData) return null;
+    try {
+      const [ivBase64, dataBase64] = encryptedData.split(":");
+      const iv = Uint8Array.from(atob(ivBase64), (c) => c.charCodeAt(0));
+      const data = Uint8Array.from(atob(dataBase64), (c) => c.charCodeAt(0));
+      const key = new TextEncoder().encode(ENCRYPTION_KEY);
+      const cryptoKey = await window.crypto.subtle.importKey(
+        "raw",
+        key,
+        { name: "AES-CBC" },
+        false,
+        ["decrypt"]
+      );
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: "AES-CBC", iv },
+        cryptoKey,
+        data
+      );
+      return new TextDecoder().decode(decrypted);
+    } catch (error) {
+      console.error("Erreur de déchiffrement:", error);
+      return null;
+    }
+  },
+  get: async (k) => {
+    if (typeof window === "undefined") return null;
+    const encrypted = localStorage.getItem(k);
+    return encrypted ? await storage.decrypt(encrypted) : null;
+  },
+  set: async (k, v) => {
+    if (typeof window === "undefined") return;
+    if (v) {
+      const encrypted = await storage.encrypt(v);
+      localStorage.setItem(k, encrypted);
+    } else {
+      localStorage.removeItem(k);
+    }
+  },
 };
 
 function parseJwt(token) {
   if (!token) return {};
   try {
-    const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(b64));
-  } catch {
+    const [header, payload, signature] = token.split(".");
+    if (!header || !payload || !signature) throw new Error("Token JWT invalide");
+    
+    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decodedPayload = JSON.parse(atob(b64));
+    
+    // Vérification de l'expiration
+    if (decodedPayload.exp && Date.now() >= decodedPayload.exp * 1000) {
+      throw new Error("Token expiré");
+    }
+    
+    return decodedPayload;
+  } catch (error) {
+    console.error("Erreur d'analyse du token JWT:", error);
     return {};
   }
 }
