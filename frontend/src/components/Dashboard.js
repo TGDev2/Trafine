@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import MapView from "./MapView";
-import RouteCalculator from "./RouteCalculator";  // pensez à ajuster le chemin si besoin
 import { io } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 import { apiFetch } from "../utils/api";
@@ -27,6 +26,7 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [form, setForm] = useState(defaultForm);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
+
   const { token, refreshToken, logout, refreshSession, isAdmin, isModerator } = useAuth();
   const socketRef = useRef(null);
 
@@ -100,79 +100,83 @@ export default function Dashboard() {
   if (loading) return <p className="loading">Chargement…</p>;
 
   return (
-    <>
-      <div className="dashboard-layout">
-        <div className="dashboard-header">
-          <h1>Trafine – Interface web</h1>
-          <nav>
-            <Link to="/" className="header-link">Incidents</Link>
-            <Link to="/stats" className="header-link">Statistiques</Link>
-          </nav>
-        </div>
-        <div className="dashboard-sidebar">
-          <ul className="menu">
-            <li>
-              <button onClick={() => setShowIncidentForm(!showIncidentForm)}>
-                Ajouter Incident
-              </button>
-            </li>
-            <li>
-              <button onClick={logout}>Déconnexion</button>
-            </li>
-          </ul>
-          {showIncidentForm && (isModerator || isAdmin) && (
-            <div className="incident-form">
-              <h2>Créer un incident</h2>
-              {error && <p className="error-msg">{error}</p>}
-              <div className="form-inputs">
-                <select
-                  value={form.type}
-                  onChange={(e) =>
-                    setForm({ ...form, type: e.target.value })
-                  }
-                >
-                  {INCIDENT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  placeholder="Description"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                />
-                <input
-                  type="text"
-                  placeholder="Latitude"
-                  value={form.latitude}
-                  onChange={(e) =>
-                    setForm({ ...form, latitude: e.target.value })
-                  }
-                />
-                <input
-                  type="text"
-                  placeholder="Longitude"
-                  value={form.longitude}
-                  onChange={(e) =>
-                    setForm({ ...form, longitude: e.target.value })
-                  }
-                />
-                <button onClick={handleCreateIncident} className="create-btn">
-                  Créer
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="dashboard-main">
-          <MapView incidents={incidents} />
-        </div>
+    <div className="dashboard-layout">
+      <div className="dashboard-header">
+        <h1>Trafine – Interface web</h1>
+        <nav>
+          <Link to="/" className="header-link">Incidents</Link>
+          <Link to="/stats" className="header-link">Statistiques</Link>
+          <Link to="/itineraire" className="header-link">Itinéraire</Link>
+        </nav>
       </div>
-      <RouteCalculator socket={socketRef.current} />
-    </>
+      <div className="dashboard-sidebar">
+        <ul className="menu">
+          <li>
+            <button onClick={() => setShowIncidentForm(!showIncidentForm)}>
+              Ajouter Incident
+            </button>
+          </li>
+          <li>
+            <button onClick={logout}>Déconnexion</button>
+          </li>
+        </ul>
+        {showIncidentForm && (isModerator || isAdmin) && (
+          <div className="incident-form">
+            <h2>Créer un incident</h2>
+            {error && <p className="error-msg">{error}</p>}
+            <div className="form-inputs">
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+              >
+                {INCIDENT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Description"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+              />
+              <input
+                type="text"
+                placeholder="Latitude"
+                value={form.latitude}
+                onChange={(e) =>
+                  setForm({ ...form, latitude: e.target.value })
+                }
+              />
+              <input
+                type="text"
+                placeholder="Longitude"
+                value={form.longitude}
+                onChange={(e) =>
+                  setForm({ ...form, longitude: e.target.value })
+                }
+              />
+              <button onClick={handleCreateIncident} className="create-btn">
+                Créer
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="dashboard-main">
+        <MapView
+          incidents={incidents}
+          isAdmin={isAdmin}
+          isModerator={isModerator}
+          token={token}
+          refreshToken={refreshToken}
+          refreshSession={refreshSession}
+          logout={logout}
+        />
+      </div>
+    </div>
   );
 }
