@@ -1,103 +1,28 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 /* ----------------  Helpers ---------------- */
-const ENCRYPTION_KEY = "0123456789ABCDEF0123456789ABCDEF"; // Clé AES-256 (32 caractères)
-
+// Stockage synchrone : lecture/écriture directes pour éviter le flash de déconnexion.
 const storage = {
-  encrypt: (text) => {
-    if (typeof window === "undefined") return text;
-    const iv = window.crypto.getRandomValues(new Uint8Array(16));
-    const key = new TextEncoder().encode(ENCRYPTION_KEY);
-    return window.crypto.subtle
-      .importKey("raw", key, { name: "AES-CBC" }, false, ["encrypt"])
-      .then((cryptoKey) =>
-        window.crypto.subtle.encrypt(
-          { name: "AES-CBC", iv },
-          cryptoKey,
-          new TextEncoder().encode(text)
-        )
-      )
-      .then((encrypted) => {
-        const encryptedArray = new Uint8Array(encrypted);
-        return `${btoa(String.fromCharCode(...iv))}:${btoa(
-          String.fromCharCode(...encryptedArray)
-        )}`;
-      });
-  },
-  decrypt: async (encryptedData) => {
-    if (typeof window === "undefined" || !encryptedData) return null;
-    try {
-      const [ivBase64, dataBase64] = encryptedData.split(":");
-      const iv = Uint8Array.from(atob(ivBase64), (c) => c.charCodeAt(0));
-      const data = Uint8Array.from(atob(dataBase64), (c) => c.charCodeAt(0));
-      const key = new TextEncoder().encode(ENCRYPTION_KEY);
-      const cryptoKey = await window.crypto.subtle.importKey(
-        "raw",
-        key,
-        { name: "AES-CBC" },
-        false,
-        ["decrypt"]
-      );
-      const decrypted = await window.crypto.subtle.decrypt(
-        { name: "AES-CBC", iv },
-        cryptoKey,
-        data
-      );
-      return new TextDecoder().decode(decrypted);
-    } catch (error) {
-      console.error("Erreur de déchiffrement:", error);
-      return null;
-    }
-  },
-  get: async (k) => {
-    if (typeof window === "undefined") return null;
-    const encrypted = localStorage.getItem(k);
-    return encrypted ? await storage.decrypt(encrypted) : null;
-  },
-  set: async (k, v) => {
+  get: (k) => (typeof window !== "undefined" ? localStorage.getItem(k) : null),
+  set: (k, v) => {
     if (typeof window === "undefined") return;
-    if (v) {
-      const encrypted = await storage.encrypt(v);
-      localStorage.setItem(k, encrypted);
-    } else {
-      localStorage.removeItem(k);
-    }
+    v ? localStorage.setItem(k, v) : localStorage.removeItem(k);
   },
 };
 
+// Analyse simple du JWT pour en extraire le rôle et vérifier l'expiration
 function parseJwt(token) {
   if (!token) return {};
-  try {
-    const [header, payload, signature] = token.split(".");
-    if (!header || !payload || !signature) throw new Error("Token JWT invalide");
-    
-    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const decodedPayload = JSON.parse(atob(b64));
-    
-    // Vérification de l'expiration
-    if (decodedPayload.exp) {
-      const expirationTime = decodedPayload.exp * 1000;
-      const timeUntilExpiry = expirationTime - Date.now();
-      
-      // Si le token est expiré
-      if (timeUntilExpiry <= 0) {
-        throw new Error("Token expiré");
-      }
-    }
-    
-    return decodedPayload;
-  } catch (error) {
-    // On ne log plus l'erreur si c'est juste une expiration
-    if (error.message !== "Token expiré") {
-      console.error("Erreur d'analyse du token JWT:", error);
-    }
-    throw error;
+  const [, payload] = token.split(".");
+  const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+  const decoded = JSON.parse(atob(b64));
+  if (decoded.exp && decoded.exp * 1000 <= Date.now()) {
+    throw new Error("Token expiré");
   }
+  return decoded;
 }
 
-/**
- * Lit les tokens éventuels dans l’URL (callback OAuth)
- */
+// Lit les tokens éventuels dans l’URL (callback OAuth)
 function getTokensFromUrl() {
   if (typeof window === "undefined")
     return { initialToken: null, initialRefresh: null };
@@ -108,18 +33,26 @@ function getTokensFromUrl() {
   };
 }
 
-/* ----------------  Contexte ---------------- */
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const { initialToken, initialRefresh } = getTokensFromUrl();
 
-  // Initialisation des states
-  const [token, setToken] = useState(initialToken || null);
-  const [refreshToken, setRefreshToken] = useState(initialRefresh || null);
-  const [role, setRole] = useState(null);
+  // ----------  États synchrones dès le premier rendu ----------
+  const [token, setToken] = useState(
+    initialToken || storage.get("token") || null
+  );
+  const [refreshToken, setRefreshToken] = useState(
+    initialRefresh || storage.get("refreshToken") || null
+  );
+  const [role, setRole] = useState(() => {
+    try {
+      return token ? parseJwt(token).role : null;
+    } catch {
+      return null;
+    }
+  });
 
-  /* ----------  Fonctions de gestion du token ---------- */
   const applyToken = (newToken, newRefresh) => {
     setToken(newToken);
     setRefreshToken(newRefresh);
@@ -151,73 +84,9 @@ export function AuthProvider({ children }) {
     return { access_token, refresh_token };
   };
 
-  // Chargement asynchrone des tokens depuis le localStorage
-  const loadTokens = async () => {
-    if (!initialToken) {
-      const storedToken = await storage.get("token");
-      if (storedToken) {
-        try {
-          const payload = parseJwt(storedToken);
-          // Si le token est proche de l'expiration (moins de 5 minutes), on le rafraîchit
-          const expirationTime = payload.exp * 1000;
-          const timeUntilExpiry = expirationTime - Date.now();
-          if (timeUntilExpiry < 300000) { // 5 minutes en millisecondes
-            const storedRefresh = await storage.get("refreshToken");
-            if (storedRefresh) {
-              const { access_token, refresh_token } = await refreshSession();
-              setToken(access_token);
-              setRefreshToken(refresh_token);
-              setRole(parseJwt(access_token).role);
-              return;
-            }
-          } else {
-            setToken(storedToken);
-            setRole(payload.role);
-          }
-        } catch (error) {
-          // Si le token est invalide ou expiré, on essaie de le rafraîchir
-          const storedRefresh = await storage.get("refreshToken");
-          if (storedRefresh) {
-            try {
-              const { access_token, refresh_token } = await refreshSession();
-              setToken(access_token);
-              setRefreshToken(refresh_token);
-              setRole(parseJwt(access_token).role);
-              return;
-            } catch (refreshError) {
-              // Si le rafraîchissement échoue, on nettoie les tokens
-              await storage.set("token", null);
-              await storage.set("refreshToken", null);
-              setToken(null);
-              setRefreshToken(null);
-              setRole(null);
-            }
-          }
-        }
-      }
-    }
-    if (!initialRefresh) {
-      const storedRefresh = await storage.get("refreshToken");
-      if (storedRefresh) {
-        setRefreshToken(storedRefresh);
-      }
-    }
-  };
-
-  // Appel initial de loadTokens
-  useEffect(() => {
-    loadTokens();
-  }, [initialToken, initialRefresh]);
-
   // Persistance automatique dans le localStorage
-  useEffect(() => {
-    if (token) storage.set("token", token);
-    else storage.set("token", null);
-  }, [token]);
-  useEffect(() => {
-    if (refreshToken) storage.set("refreshToken", refreshToken);
-    else storage.set("refreshToken", null);
-  }, [refreshToken]);
+  useEffect(() => storage.set("token", token), [token]);
+  useEffect(() => storage.set("refreshToken", refreshToken), [refreshToken]);
 
   // Nettoyage de l’URL (on enlève les ?token=…&refreshToken=…)
   useEffect(() => {
