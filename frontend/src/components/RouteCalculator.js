@@ -500,13 +500,7 @@ function RouteCalculator({ socket }) {
             <button
               onClick={handlePush}
               disabled={pushLoading}
-              style={{
-                marginBottom: "20px",
-                background: "white",
-                borderRadius: "12px",
-                padding: "20px",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
-              }}
+              style={{ marginTop: "10px", padding: "8px 12px" }}
             >
               {pushLoading ? "Envoi en cours…" : "Envoyer sur mobile"}
             </button>

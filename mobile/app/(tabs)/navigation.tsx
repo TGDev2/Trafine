@@ -9,10 +9,11 @@ import {
   Button,
 } from "react-native";
 import MapView, { Marker, Callout, Region } from "react-native-maps";
-import io from "socket.io-client";
+import { io } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
+import { API_URL } from "@/constants/API";
 
 // Définition de l'interface Incident
 interface Incident {
@@ -42,7 +43,8 @@ export default function NavigationScreen() {
     // Connexion WebSocket sécurisée
     const connectSocket = async () => {
       const token = await AsyncStorage.getItem("token");
-      const socket = io("http://localhost:3000", {
+      const socket = io(API_URL, {
+        // ← on pointe sur API_URL
         transports: ["websocket"],
         auth: { token: `Bearer ${token}` },
       });
@@ -95,7 +97,8 @@ export default function NavigationScreen() {
     setVoteLoadingId(id);
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await fetch(`http://localhost:3000/incidents/${id}/confirm`, {
+      const res = await fetch(`${API_URL}/incidents/${id}/confirm`, {
+        // ← idem
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -113,7 +116,7 @@ export default function NavigationScreen() {
     setVoteLoadingId(id);
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await fetch(`http://localhost:3000/incidents/${id}/deny`, {
+      const res = await fetch(`${API_URL}/incidents/${id}/deny`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -155,7 +158,7 @@ export default function NavigationScreen() {
                 {incident.description || "Sans description"}
               </Text>
               <Text style={styles.status}>
-                Confirmé : {incident.confirmed ? "Oui" : "Non"} | Infirmé :{" "}
+                Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf:{" "}
                 {incident.denied ? "Oui" : "Non"}
               </Text>
               <View style={styles.buttonContainer}>

@@ -3,6 +3,7 @@
     "sdkVersion": "52.0.0",
     "name": "mobile",
     "slug": "mobile",
+    "scheme": "myapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "platforms": [
@@ -54,7 +55,8 @@
       },
       "eas": {
         "projectId": "918f7b27-5bd7-4e31-95e8-61df6f044097"
-      }
+      },
+      "apiUrl": "http://10.0.2.2:3000"
     }
   }
 }
