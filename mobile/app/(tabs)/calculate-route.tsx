@@ -19,7 +19,7 @@ import MapView, {
   PROVIDER_GOOGLE,
   Region,
 } from "react-native-maps";
-
+import { API_URL } from "@/constants/API";
 /* -------------------- Types -------------------- */
 type LatLng = { latitude: number; longitude: number };
 type CoordinatePair = [number, number];
@@ -108,7 +108,8 @@ export default function CalculateRouteScreen() {
 
   /* -------- Socket -------- */
   useEffect(() => {
-    socketRef.current = io("http://localhost:3000", {
+    socketRef.current = io(API_URL, {
+      // ← ici on pointe vers API_URL
       transports: ["websocket"],
     });
     return () => {
@@ -126,7 +127,8 @@ export default function CalculateRouteScreen() {
       const loc = await Location.getCurrentPositionAsync({});
       setCurrentLocation(loc.coords);
 
-      const res = await fetch("http://localhost:3000/navigation/calculate", {
+      const res = await fetch(`${API_URL}/navigation/calculate`, {
+        // ← ici aussi
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -258,13 +260,13 @@ export default function CalculateRouteScreen() {
             <Text style={styles.instructionTitle}>Prochaine instruction</Text>
             <Text style={styles.instructionText}>{step.instruction}</Text>
             <Text style={styles.instructionSub}>
-              Dans {Math.round(step.distance)} m
+              Dans {Math.round(step.distance)} m
             </Text>
           </View>
         )}
 
         {loadingRoute && <ActivityIndicator style={{ marginTop: 8 }} />}
-        {error && <Text style={styles.error}>Erreur : {error}</Text>}
+        {error && <Text style={styles.error}>Erreur : {error}</Text>}
       </View>
     </View>
   );

@@ -11,6 +11,7 @@ import { makeRedirectUri } from "expo-auth-session";
 import AuthSession from "expo-auth-session";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { API_URL } from "@/constants/API";
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
@@ -21,8 +22,8 @@ export default function LoginScreen() {
     try {
       // Calcul du redirect URI en fonction du schéma défini dans app.json (ici "myapp")
       const redirectUri = makeRedirectUri({ native: "myapp://redirect" });
-      // Construction de l’URL d’authentification, en y incluant le redirect_uri afin que le backend renvoie le token
-      const authUrl = `http://localhost:3000/auth/${provider}?redirect_uri=${encodeURIComponent(
+      // Construction de l’URL d’authentification via API_URL
+      const authUrl = `${API_URL}/auth/${provider}?redirect_uri=${encodeURIComponent(
         redirectUri
       )}`;
 

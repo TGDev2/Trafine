@@ -12,6 +12,7 @@ import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { useNavigation } from "expo-router";
+import { API_URL } from "@/constants/API";
 
 const INCIDENT_TYPES = [
   { label: "Accident", value: "accident" },
@@ -42,7 +43,6 @@ export default function ReportIncidentScreen() {
         setLoadingLocation(false);
         return;
       }
-
       try {
         const loc = await Location.getCurrentPositionAsync();
         setLocation(loc.coords);
@@ -67,11 +67,10 @@ export default function ReportIncidentScreen() {
     setSubmitting(true);
     try {
       const token = await AsyncStorage.getItem("token");
-      if (!token) {
-        throw new Error("Utilisateur non authentifié");
-      }
+      if (!token) throw new Error("Utilisateur non authentifié");
 
-      const response = await fetch("http://localhost:3000/incidents", {
+      const response = await fetch(`${API_URL}/incidents`, {
+        // ← ici aussi
         method: "POST",
         headers: {
           "Content-Type": "application/json",
