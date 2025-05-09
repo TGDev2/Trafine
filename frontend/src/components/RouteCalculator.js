@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import RouteMap from "./RouteMap";
 import { geocode } from "../utils/geocode";
 import { useAuth } from "../contexts/AuthContext";
 import { apiFetch } from "../utils/api";
+// Suppression de l'import dupliqué de Link
 import "../style/routeCalculator.css";
 
 // Fonction de traduction des instructions
@@ -268,199 +269,202 @@ function RouteCalculator({ socket }) {
 
   // --------------------------  Render  ----------------------------
   return (
-    <div className="route-calc-container">
-      <button
-        type="button"
-        onClick={() => navigate("/")}
-        style={{
-          marginBottom: "18px",
-          background: "#eee",
-          color: "#2c3e50",
-          border: "none",
-          borderRadius: "6px",
-          padding: "8px 16px",
-          cursor: "pointer",
-          fontWeight: 500,
-        }}
-      >
-        ← Retour aux incidents
-      </button>
-      <h2>Calculateur d'itinéraire</h2>
+    <div className="route-calc-layout">
+      <div className="dashboard-header">
+        {/* Logo Traffine */}
+        <img src="/traffine-icon-noBG.png" alt="Traffine Logo" className="logo" />
+        <h1>Trafine – Interface web</h1>
+        <nav>
+          <Link to="/" className="header-link">
+            Incidents
+          </Link>
+          <Link to="/stats" className="header-link">
+            Statistiques
+          </Link>
+          <Link to="/itineraire" className="header-link">
+            Itinéraire
+          </Link>
+        </nav>
+      </div>
+      <div className="route-calc-container">
+        <h2>Calculateur d'itinéraire</h2>
 
-      {/* -------  Formulaire ------- */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleCalculateRoute();
-        }}
-      >
-        {/* Source */}
-        <div>
-          <label style={{ marginRight: "10px" }}>Point de départ :</label>
-          <input
-            type="text"
-            value={sourceInput}
-            onChange={(e) => setSourceInput(e.target.value)}
-            required
-            placeholder="Ex : Paris ou 48.8566, 2.3522"
-          />
-        </div>
-
-        {/* Destination */}
-        <div>
-          <label style={{ marginRight: "10px" }}>Destination :</label>
-          <input
-            type="text"
-            value={destinationInput}
-            onChange={(e) => setDestinationInput(e.target.value)}
-            required
-            placeholder="Ex : Lyon ou 45.7640, 4.8357"
-          />
-        </div>
-
-        {/* Options */}
-        <div>
-          <label>
+        {/* -------  Formulaire ------- */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCalculateRoute();
+          }}
+        >
+          {/* Source */}
+          <div>
+            <label style={{ marginRight: "10px" }}>Point de départ :</label>
             <input
-              type="checkbox"
-              checked={avoidTolls}
-              onChange={(e) => setAvoidTolls(e.target.checked)}
-              style={{ marginRight: "5px" }}
+              type="text"
+              value={sourceInput}
+              onChange={(e) => setSourceInput(e.target.value)}
+              required
+              placeholder="Ex : Paris ou 48.8566, 2.3522"
             />
-            Éviter les péages
-          </label>
-        </div>
+          </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Calcul en cours…" : "Calculer"}
-        </button>
-      </form>
+          {/* Destination */}
+          <div>
+            <label style={{ marginRight: "10px" }}>Destination :</label>
+            <input
+              type="text"
+              value={destinationInput}
+              onChange={(e) => setDestinationInput(e.target.value)}
+              required
+              placeholder="Ex : Lyon ou 45.7640, 4.8357"
+            />
+          </div>
 
-      {error && <p className="error-msg">Erreur : {error}</p>}
+          {/* Options */}
+          <div>
+            <label>
+              <input
+                type="checkbox"
+                checked={avoidTolls}
+                onChange={(e) => setAvoidTolls(e.target.checked)}
+                style={{ marginRight: "5px" }}
+              />
+              Éviter les péages
+            </label>
+          </div>
 
-      {/* -------  Résultats ------- */}
-      {routes && routes.length > 0 && (
-        <div className="route-result">
-          <RouteMap routes={routes} />
-          <h3>Itinéraire(s) calculé(s)</h3>
-          {routes.map((rt, idx) => (
-            <div
-              key={idx}
-              className="route-card"
+          <button type="submit" disabled={loading}>
+            {loading ? "Calcul en cours…" : "Calculer"}
+          </button>
+        </form>
+
+        {error && <p className="error-msg">Erreur : {error}</p>}
+
+        {/* -------  Résultats ------- */}
+        {routes && routes.length > 0 && (
+          <div className="route-result">
+            <RouteMap routes={routes} />
+            <h3>Itinéraire(s) calculé(s)</h3>
+            {routes.map((rt, idx) => (
+              <div
+                key={idx}
+                className="route-card"
+                style={{
+                  marginBottom: "20px",
+                  background: "white",
+                  borderRadius: "12px",
+                  padding: "20px",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.1)"
+                }}
+              >
+                <div className="route-header" style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between",
+                  marginBottom: "15px",
+                  padding: "0 0 15px 0",
+                  borderBottom: "1px solid #eee"
+                }}>
+                  <div>
+                    <h4 style={{ margin: "0 0 5px 0", color: "#2c3e50" }}>
+                      {idx === 0 ? "Itinéraire recommandé" : `Alternative ${idx + 1}`}
+                    </h4>
+                    <span style={{ color: "#7f8c8d" }}>
+                      {rt.distance} • {(() => {
+                        console.log("Type de durée:", typeof rt.duration, "Valeur:", rt.duration);
+                        return formatDuration(rt.duration);
+                      })()}
+                    </span>
+                  </div>
+                  <div style={{ 
+                    padding: "4px 12px",
+                    borderRadius: "15px",
+                    background: rt.recalculated ? "#fff3cd" : "#d4edda",
+                    color: rt.recalculated ? "#856404" : "#155724",
+                    fontSize: "0.9em"
+                  }}>
+                    {rt.recalculated ? "Recalculé" : "Optimal"}
+                  </div>
+                </div>
+                
+                <div className="route-instructions">
+                  {rt.instructions.map((instr, i) => (
+                    <div key={i} style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      padding: "12px 0",
+                      borderBottom: i < rt.instructions.length - 1 ? "1px solid #f5f6fa" : "none"
+                    }}>
+                      <div style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        background: "#f1f2f6",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: "15px",
+                        flexShrink: 0
+                      }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {translateInstruction(instr)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={handlePush}
+              disabled={pushLoading}
               style={{
-                marginBottom: "20px",
-                background: "white",
-                borderRadius: "12px",
-                padding: "20px",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.1)"
+                marginTop: "10px",
+                padding: "8px 12px",
+                marginRight: "10px",
               }}
             >
-              <div className="route-header" style={{ 
-                display: "flex", 
-                justifyContent: "space-between",
-                marginBottom: "15px",
-                padding: "0 0 15px 0",
-                borderBottom: "1px solid #eee"
-              }}>
-                <div>
-                  <h4 style={{ margin: "0 0 5px 0", color: "#2c3e50" }}>
-                    {idx === 0 ? "Itinéraire recommandé" : `Alternative ${idx + 1}`}
-                  </h4>
-                  <span style={{ color: "#7f8c8d" }}>
-                    {rt.distance} • {(() => {
-                      console.log("Type de durée:", typeof rt.duration, "Valeur:", rt.duration);
-                      return formatDuration(rt.duration);
-                    })()}
-                  </span>
-                </div>
-                <div style={{ 
-                  padding: "4px 12px",
-                  borderRadius: "15px",
-                  background: rt.recalculated ? "#fff3cd" : "#d4edda",
-                  color: rt.recalculated ? "#856404" : "#155724",
-                  fontSize: "0.9em"
-                }}>
-                  {rt.recalculated ? "Recalculé" : "Optimal"}
-                </div>
-              </div>
-              
-              <div className="route-instructions">
-                {rt.instructions.map((instr, i) => (
-                  <div key={i} style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    padding: "12px 0",
-                    borderBottom: i < rt.instructions.length - 1 ? "1px solid #f5f6fa" : "none"
-                  }}>
-                    <div style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "50%",
-                      background: "#f1f2f6",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: "15px",
-                      flexShrink: 0
-                    }}>
-                      {i + 1}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      {translateInstruction(instr)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+              {pushLoading ? "Envoi en cours…" : "Envoyer sur mobile"}
+            </button>
+            {pushMessage && <p className="success-msg">{pushMessage}</p>}
 
-          <button
-            onClick={handlePush}
-            disabled={pushLoading}
-            style={{
-              marginTop: "10px",
-              padding: "8px 12px",
-              marginRight: "10px",
-            }}
-          >
-            {pushLoading ? "Envoi en cours…" : "Envoyer sur mobile"}
-          </button>
-          {pushMessage && <p className="success-msg">{pushMessage}</p>}
-
-          <button
-            onClick={handleShare}
-            disabled={qrLoading}
-            style={{ marginTop: "10px", padding: "8px 12px" }}
-          >
-            {qrLoading ? "Génération du QR code…" : "Partager l'itinéraire"}
-          </button>
-          
-          {/* -------  QR code de partage ------- */}
-          {qrCode && (
-            <div className="qr-section">
-              <h4>QR code de partage</h4>
-              <img
-                src={qrCode}
-                alt="QR code itinéraire"
-              />
-              {shareId && (
-                <p>
-                  Lien de partage :{" "}
-                  <a
-                    href={`/share/${shareId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {window.location.origin}/share/{shareId}
-                  </a>
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+            <button
+              onClick={handleShare}
+              disabled={qrLoading}
+              style={{ marginTop: "10px", padding: "8px 12px" }}
+            >
+              {qrLoading ? "Génération du QR code…" : "Partager l'itinéraire"}
+            </button>
+            
+            {/* -------  QR code de partage ------- */}
+            {qrCode && (
+              <div className="qr-section">
+                <h4>QR code de partage</h4>
+                <img
+                  src={qrCode}
+                  alt="QR code itinéraire"
+                />
+                {shareId && (
+                  <p>
+                    Lien de partage :{" "}
+                    <a
+                      href={`/share/${shareId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {window.location.origin}/share/{shareId}
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default RouteCalculator;
+
