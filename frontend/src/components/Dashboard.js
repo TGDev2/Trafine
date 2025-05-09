@@ -104,6 +104,8 @@ export default function Dashboard() {
   return (
     <div className="dashboard-layout">
       <div className="dashboard-header">
+        {/* Logo Traffine */}
+        <img src="/traffine-icon-noBG.png" alt="Traffine Logo" className="logo" />
         <h1>Trafine – Interface web</h1>
         <nav>
           <Link to="/" className="header-link">

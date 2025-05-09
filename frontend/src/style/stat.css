@@ -1,15 +1,14 @@
 /* Container Stats */
-
 .stats-container {
   font-family: Arial, sans-serif;
   color: #333;
   background: #f9f9f9;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
-  padding: 32px;
-  margin: 32px auto;
-  max-width: 1400px;
-  min-height: 80vh;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 20px;
+  margin: 0;
+  height: 100%;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -176,4 +175,70 @@
 }
 .stats-container .modern-btn.secondary:hover {
   background: linear-gradient(90deg, #636e72 0%, #b2bec3 100%);
+}
+
+/* Structure de mise en page pour correspondre au Dashboard */
+.stats-layout {
+  position: relative;
+  padding-top: 60px;
+  display: flex;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+}
+
+.stats-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background-color: #2c3e50;
+  color: #ecf0f1;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 999;
+}
+
+.stats-header h1 {
+  margin: 0;
+  font-size: 20px;
+  order: 1;
+}
+
+.stats-header .logo {
+  height: 40px;
+  width: auto;
+  margin: 0;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3));
+  order: 2;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.stats-header .logo:hover {
+  transform: scale(1.05);
+}
+
+.stats-header nav {
+  display: flex;
+  gap: 20px;
+  order: 3;
+}
+
+.stats-sidebar {
+  width: 250px;
+  background-color: #2c3e50;
+  color: #ecf0f1;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.stats-main {
+  flex-grow: 1;
+  position: relative;
 }
