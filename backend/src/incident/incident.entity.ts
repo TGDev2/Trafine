@@ -33,10 +33,18 @@ export class Incident {
 
   // Accesseurs pour obtenir la latitude et la longitude depuis la donnée géospatiale
   get latitude(): number {
+    // Vérifier si les coordonnées existent avant d'accéder à l'index 1
+    if (!this.location || !this.location.coordinates || !Array.isArray(this.location.coordinates) || this.location.coordinates.length < 2) {
+      return 0; // Valeur par défaut
+    }
     return this.location.coordinates[1];
   }
 
   get longitude(): number {
+    // Vérifier si les coordonnées existent avant d'accéder à l'index 0
+    if (!this.location || !this.location.coordinates || !Array.isArray(this.location.coordinates) || this.location.coordinates.length < 2) {
+      return 0; // Valeur par défaut
+    }
     return this.location.coordinates[0];
   }
 
