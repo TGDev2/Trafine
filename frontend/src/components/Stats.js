@@ -190,6 +190,34 @@ export default function Stats() {
         <div className="stats-container">
           <div className="stats-actions">
             <button className="modern-btn" onClick={fetchStats}>🔄 Rafraîchir</button>
+            {isAdmin && (
+              <button 
+                className="modern-btn reset-btn" 
+                onClick={async () => {
+                  if (window.confirm('Êtes-vous sûr de vouloir supprimer tous les incidents ? Cette action est irréversible.')) {
+                    try {
+                      await apiFetch(
+                        "http://localhost:3000/incidents",
+                        {
+                          method: "DELETE",
+                          headers: {
+                            "Content-Type": "application/json"
+                          }
+                        },
+                        { token, refreshToken, refreshSession, logout }
+                      );
+                      // Rafraîchir les statistiques après la suppression
+                      fetchStats();
+                      alert("Tous les incidents ont été supprimés avec succès.");
+                    } catch (error) {
+                      alert("Erreur lors de la suppression des incidents : " + error.message);
+                    }
+                  }
+                }}
+              >
+                🗑️ Réinitialiser les incidents
+              </button>
+            )}
           </div>
           <table className="stats-table">
             <thead>
