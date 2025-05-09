@@ -1,18 +1,12 @@
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
+import { Stack, useRouter } from "expo-router";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
 
-// Empêcher la disparition automatique de l'écran de démarrage jusqu'au chargement complet
+// Empêche la disparition automatique de l'écran de démarrage
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -26,8 +20,8 @@ export default function RootLayout() {
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem("token");
       if (!token) {
-        // Forçage du type pour satisfaire le typage d'Expo Router
-        router.replace("/login" as any);
+        // Redirige vers l'écran de login si non authentifié
+        router.replace("/login");
       }
       setCheckingAuth(false);
       SplashScreen.hideAsync();
@@ -44,12 +38,22 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={DefaultTheme}>
+    <>
       <Stack>
+        {/* Écran de login en modal */}
+        <Stack.Screen
+          name="login"
+          options={{ headerShown: false, presentation: "modal" }}
+        />
+
+        {/* Pile principale (tabs) */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+
+        {/* Page 404 */}
+        <Stack.Screen name="+not-found" options={{ title: "Oops!" }} />
       </Stack>
+
       <StatusBar style="auto" />
-    </ThemeProvider>
+    </>
   );
 }
