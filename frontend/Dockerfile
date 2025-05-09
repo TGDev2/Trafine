@@ -29,4 +29,6 @@ COPY --from=build /usr/src/app/build /usr/share/nginx/html
 EXPOSE 80
 
 # Lancement de Nginx
-CMD ["nginx", "-g", "daemon off;"]
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+CMD ["/start.sh"]
