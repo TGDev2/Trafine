@@ -10,7 +10,10 @@ export class MLPredictionService {
     private incidentRepository: Repository<Incident>,
   ) {}
 
-  private async getHistoricalData(hours: number = 168) {
+  /* ------------------------------------------------------------------
+   *  Données historiques
+   * -----------------------------------------------------------------*/
+  private async getHistoricalData(hours = 168) {
     const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
     return this.incidentRepository.find({
       where: { createdAt: MoreThanOrEqual(startDate) },
@@ -18,12 +21,15 @@ export class MLPredictionService {
     });
   }
 
+  /* ------------------------------------------------------------------
+   *  Feature engineering
+   * -----------------------------------------------------------------*/
   private calculateFeatures(incidents: Incident[]) {
     const hourlyCount = new Array(24).fill(0);
     const dayOfWeekCount = new Array(7).fill(0);
     const typeCount: Record<string, number> = {};
 
-    incidents.forEach(incident => {
+    incidents.forEach((incident) => {
       const date = new Date(incident.createdAt);
       hourlyCount[date.getHours()]++;
       dayOfWeekCount[date.getDay()]++;
@@ -41,39 +47,51 @@ export class MLPredictionService {
   private calculateTrends(features: {
     hourlyCount: number[];
     dayOfWeekCount: number[];
-    typeCount: Record<string, number>;
     total: number;
   }) {
-    const hourlyAvg = features.hourlyCount.reduce((a: number, b: number) => a + b, 0) / 24;
-    const dailyAvg = features.dayOfWeekCount.reduce((a: number, b: number) => a + b, 0) / 7;
+    const hourlyAvg =
+      features.hourlyCount.reduce((a, b) => a + b, 0) /
+      features.hourlyCount.length;
+    const dailyAvg =
+      features.dayOfWeekCount.reduce((a, b) => a + b, 0) /
+      features.dayOfWeekCount.length;
 
     return {
       hourlyVariance: Math.sqrt(
         features.hourlyCount
-          .map((count: number) => Math.pow(count - hourlyAvg, 2))
-          .reduce((a: number, b: number) => a + b, 0) / 24
+          .map((c) => (c - hourlyAvg) ** 2)
+          .reduce((a, b) => a + b, 0) / features.hourlyCount.length,
       ),
       dailyVariance: Math.sqrt(
         features.dayOfWeekCount
-          .map((count: number) => Math.pow(count - dailyAvg, 2))
-          .reduce((a: number, b: number) => a + b, 0) / 7
+          .map((c) => (c - dailyAvg) ** 2)
+          .reduce((a, b) => a + b, 0) / features.dayOfWeekCount.length,
       ),
     };
   }
 
-  async getPrediction(targetDate: Date = new Date(Date.now() + 60 * 60 * 1000)) {
-    const historicalData = await this.getHistoricalData();
+  /* ------------------------------------------------------------------
+   *  Prédiction « naïve » avec pondération heuristique
+   * -----------------------------------------------------------------*/
+  async getPrediction(
+    targetDate: Date = new Date(Date.now() + 60 * 60 * 1000),
+    hoursAnalysed = 168, // 7 jours par défaut
+  ) {
+    const historicalData = await this.getHistoricalData(hoursAnalysed);
     const features = this.calculateFeatures(historicalData);
     const trends = this.calculateTrends(features);
 
-    // Facteurs de pondération pour le modèle
+    /* Pondération empirique */
     const hourWeight = 0.4;
     const dayWeight = 0.3;
     const trendWeight = 0.3;
 
-    // Calcul du score de congestion prévu
-    const hourlyScore = features.hourlyCount[targetDate.getHours()] / Math.max(...features.hourlyCount);
-    const dayScore = features.dayOfWeekCount[targetDate.getDay()] / Math.max(...features.dayOfWeekCount);
+    const hourlyScore =
+      features.hourlyCount[targetDate.getHours()] /
+      Math.max(...features.hourlyCount, 1);
+    const dayScore =
+      features.dayOfWeekCount[targetDate.getDay()] /
+      Math.max(...features.dayOfWeekCount, 1);
     const trendScore = (trends.hourlyVariance + trends.dailyVariance) / 2;
 
     const weightedScore =
@@ -81,17 +99,19 @@ export class MLPredictionService {
       dayScore * dayWeight +
       trendScore * trendWeight;
 
-    // Estimation du nombre d'incidents
-    const estimatedIncidents = Math.round(
-      (features.total / 168) * // moyenne horaire de base
-      (1 + weightedScore) // facteur de multiplication basé sur le score
+    const estimatedIncidents = Math.max(
+      0,
+      Math.round((features.total / hoursAnalysed) * (1 + weightedScore)),
     );
 
     return {
       timestamp: targetDate.toISOString(),
       congestionLevel: this.getCongestLevel(weightedScore),
-      incidentCount: Math.max(0, estimatedIncidents),
+      incidentCount: estimatedIncidents,
       confidence: Math.round(weightedScore * 100),
+      hoursAnalysed,
+      daysAnalysed: hoursAnalysed / 24,
+      /*  Historique détaillé  */
       historicalMetrics: {
         totalIncidents: features.total,
         hourlyDistribution: features.hourlyCount,
@@ -101,6 +121,9 @@ export class MLPredictionService {
     };
   }
 
+  /* ------------------------------------------------------------------
+   *  Mapping score → libellé
+   * -----------------------------------------------------------------*/
   private getCongestLevel(score: number): 'low' | 'moderate' | 'high' {
     if (score < 0.4) return 'low';
     if (score < 0.7) return 'moderate';
