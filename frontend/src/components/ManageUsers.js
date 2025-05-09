@@ -25,7 +25,9 @@ export default function ManageUsers() {
         );
         if (!res.ok) throw new Error("Impossible de récupérer la liste.");
         const data = await res.json();
-        if (mounted) setUsers(data);
+        // Tri des utilisateurs par ID croissant
+        const sortedData = [...data].sort((a, b) => a.id - b.id);
+        if (mounted) setUsers(sortedData);
       } catch (e) {
         if (mounted) setError(e.message);
       } finally {
@@ -59,7 +61,7 @@ export default function ManageUsers() {
   };
 
   if (loading) return <p className="users-table-container">Chargement des utilisateurs…</p>;
-  if (error) return <p className="users-table-container" style={{ color: "crimson" }}>Erreur : {error}</p>;
+  if (error) return <p className="users-table-container" style={{ color: "crimson" }}>Erreur : {error}</p>;
 
   return (
     <div className="users-table-container">
@@ -86,7 +88,7 @@ export default function ManageUsers() {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Nom d’utilisateur</th>
+            <th>Nom d'utilisateur</th>
             <th>Rôle</th>
             <th>Action</th>
           </tr>

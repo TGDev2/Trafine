@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import React, { useState, useCallback, useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { apiFetch } from "../utils/api";
@@ -62,6 +62,34 @@ const MapClickHandler = ({ onMapClick, isCreating }) => {
       }
     },
   });
+  return null;
+};
+
+// Composant pour sauvegarder la position et le zoom de la carte
+const MapStateHandler = () => {
+  const map = useMap();
+  
+  // Sauvegarde la position et le zoom actuels dans localStorage
+  useEffect(() => {
+    map.on('moveend', () => {
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      localStorage.setItem('mapCenter', JSON.stringify([center.lat, center.lng]));
+      localStorage.setItem('mapZoom', zoom);
+    });
+  }, [map]);
+  
+  // Restaure la position et le zoom sauvegardés
+  useEffect(() => {
+    const savedCenter = localStorage.getItem('mapCenter');
+    const savedZoom = localStorage.getItem('mapZoom');
+    
+    if (savedCenter && savedZoom) {
+      const center = JSON.parse(savedCenter);
+      map.setView(center, parseInt(savedZoom));
+    }
+  }, [map]);
+  
   return null;
 };
 
@@ -183,6 +211,10 @@ const MapView = ({
     
     try {
       setError(null);
+      
+      // Sauvegarder la position de l'incident créé pour y zoomer après le rafraîchissement
+      localStorage.setItem('newIncidentPosition', JSON.stringify([newIncidentPosition.lat, newIncidentPosition.lng]));
+      
       const res = await apiFetch(
         "http://localhost:3000/incidents",
         {
@@ -207,6 +239,9 @@ const MapView = ({
       setNewIncidentPosition(null);
       setNewIncidentData({ type: INCIDENT_TYPES[0], description: "" });
       setIsCreating(false);
+      
+      // Rafraîchissement de la page après création réussie
+      window.location.reload();
     } catch (e) {
       if (e.message && e.message.toLowerCase().includes("session")) {
         logout();
@@ -227,7 +262,7 @@ const MapView = ({
     <div style={{ height: "100%", width: "100%" }}>
       <MapContainer
         center={defaultPosition}
-        zoom={6}
+        zoom={localStorage.getItem('mapZoom') ? parseInt(localStorage.getItem('mapZoom')) : 6}
         scrollWheelZoom={true}
         style={{ height: "100%", width: "100%" }}
       >
@@ -236,6 +271,7 @@ const MapView = ({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapClickHandler onMapClick={handleMapClick} isCreating={isCreating} />
+        <MapStateHandler />
         
         {/* Marqueur pour le nouvel incident */}
         {newIncidentPosition && isCreating && (
