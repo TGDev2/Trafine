@@ -42,7 +42,7 @@ export class OrsRouteCalculationStrategy implements RouteCalculationStrategy {
 
   /** Vérifie la position en France métro */
   private assertInFrance(lat: number, lon: number, label: string) {
-    if (lat < 41 || lat > 51 || lon < -5 || lon > 9) {
+    if (lat < 41 || lat > 52 || lon < -5 || lon > 9) {
       throw new BadRequestException(
         `${label} (${lat}, ${lon}) doit se situer en France métropolitaine.`,
       );

@@ -91,12 +91,24 @@ function formatDuration(duration) {
 
 function RouteCalculator({ socket }) {
   // ---------------------------  State  ---------------------------
-  const [sourceInput, setSourceInput] = useState("");
-  const [destinationInput, setDestinationInput] = useState("");
-  const [sourceCoords, setSourceCoords] = useState(null);
-  const [destCoords, setDestCoords] = useState(null);
-  const [avoidTolls, setAvoidTolls] = useState(false);
-  const [routes, setRoutes] = useState(null);
+  const [sourceInput, setSourceInput] = useState(() => localStorage.getItem('sourceInput') || "");
+  const [destinationInput, setDestinationInput] = useState(() => localStorage.getItem('destinationInput') || "");
+  const [sourceCoords, setSourceCoords] = useState(() => {
+    const saved = localStorage.getItem('sourceCoords');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [destCoords, setDestCoords] = useState(() => {
+    const saved = localStorage.getItem('destCoords');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [avoidTolls, setAvoidTolls] = useState(() => {
+    const saved = localStorage.getItem('avoidTolls');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [routes, setRoutes] = useState(() => {
+    const saved = localStorage.getItem('routes');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   // États pour le partage QR Code
   const [qrCode, setQrCode] = useState(null);
@@ -111,6 +123,37 @@ function RouteCalculator({ socket }) {
 
   const { token, refreshToken, refreshSession, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Sauvegarde des états dans localStorage quand ils changent
+  useEffect(() => {
+    localStorage.setItem('sourceInput', sourceInput);
+  }, [sourceInput]);
+
+  useEffect(() => {
+    localStorage.setItem('destinationInput', destinationInput);
+  }, [destinationInput]);
+
+  useEffect(() => {
+    if (sourceCoords) {
+      localStorage.setItem('sourceCoords', JSON.stringify(sourceCoords));
+    }
+  }, [sourceCoords]);
+
+  useEffect(() => {
+    if (destCoords) {
+      localStorage.setItem('destCoords', JSON.stringify(destCoords));
+    }
+  }, [destCoords]);
+
+  useEffect(() => {
+    localStorage.setItem('avoidTolls', JSON.stringify(avoidTolls));
+  }, [avoidTolls]);
+
+  useEffect(() => {
+    if (routes) {
+      localStorage.setItem('routes', JSON.stringify(routes));
+    }
+  }, [routes]);
 
   // ---------------------------------------------------------------
   //  Calcul d'itinéraire (extrait dans une callback réutilisable)
@@ -275,6 +318,29 @@ function RouteCalculator({ socket }) {
     } finally {
       setPushLoading(false);
     }
+  };
+
+  // --------------------------  Reset  --------------------------
+  const handleReset = () => {
+    // Clear all form inputs and results
+    setSourceInput("");
+    setDestinationInput("");
+    setSourceCoords(null);
+    setDestCoords(null);
+    setRoutes(null);
+    
+    // Clear localStorage
+    localStorage.removeItem('sourceInput');
+    localStorage.removeItem('destinationInput');
+    localStorage.removeItem('sourceCoords');
+    localStorage.removeItem('destCoords');
+    localStorage.removeItem('routes');
+    
+    // Reset QR code state
+    setQrCode(null);
+    setShareId(null);
+    setPushMessage(null);
+    setError(null);
   };
 
   // --------------------------  Render  ----------------------------
@@ -489,5 +555,10 @@ function RouteCalculator({ socket }) {
     </div>
   );
 }
+
+// Supprimer cette fonction qui est maintenant à l'intérieur du composant
+// const handleReset = () => {
+//   ...
+// };
 
 export default RouteCalculator;

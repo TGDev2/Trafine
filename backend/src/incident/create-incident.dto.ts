@@ -23,8 +23,8 @@ export class CreateIncidentDto {
   @Min(41.0, {
     message: 'La latitude doit être ≥ 41.0 (France métropolitaine)',
   })
-  @Max(51.0, {
-    message: 'La latitude doit être ≤ 51.0 (France métropolitaine)',
+  @Max(52.0, {
+    message: 'La latitude doit être ≤ 52.0 (France métropolitaine)',
   })
   latitude!: number;
 
