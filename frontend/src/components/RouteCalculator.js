@@ -50,9 +50,9 @@ function translateInstruction(instr) {
     .replace(" 5th", " cinquième")
     .replace(" 6th", " sixième")
     .replace("on the left", "sur la gauche")
-   .replace("on the right", "sur la droite")
-   .replace("at the end of", "à la fin de")
-   .replace("at the end", "à la fin");
+    .replace("on the right", "sur la droite")
+    .replace("at the end of", "à la fin de")
+    .replace("at the end", "à la fin");
 }
 
 // Fonction pour formater la durée en français
@@ -61,32 +61,32 @@ function formatDuration(duration) {
   if (duration === null || duration === undefined) {
     return "Durée inconnue";
   }
-  
+
   // Convertir en nombre si c'est une chaîne
   const durationNum = parseFloat(duration);
-  
+
   // Vérifier si la conversion a réussi
   if (isNaN(durationNum)) {
     return "Durée inconnue";
   }
-  
+
   const minutes = Math.floor(durationNum % 60);
   const hours = Math.floor((durationNum / 60) % 24);
   const days = Math.floor(durationNum / (60 * 24));
 
   const parts = [];
-  
+
   if (days > 0) {
-    parts.push(`${days} jour${days > 1 ? 's' : ''}`);
+    parts.push(`${days} jour${days > 1 ? "s" : ""}`);
   }
   if (hours > 0) {
-    parts.push(`${hours} heure${hours > 1 ? 's' : ''}`);
+    parts.push(`${hours} heure${hours > 1 ? "s" : ""}`);
   }
   if (minutes > 0 || parts.length === 0) {
-    parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+    parts.push(`${minutes} minute${minutes > 1 ? "s" : ""}`);
   }
 
-  return parts.join(' et ');
+  return parts.join(" et ");
 }
 
 function RouteCalculator({ socket }) {
@@ -124,7 +124,7 @@ function RouteCalculator({ socket }) {
         setRoutes(null);
       }
       try {
-        // Résolution des coordonnées
+        // 1/ Résolution des coordonnées
         const src = coordRegex.test(sourceInput)
           ? sourceInput
           : await geocode(sourceInput);
@@ -135,19 +135,21 @@ function RouteCalculator({ socket }) {
         setSourceCoords(src);
         setDestCoords(dst);
 
-        const response = await fetch(
+        // 2/ Appel backend sécurisé (CSRF + JWT auto)
+        const response = await apiFetch(
           "http://localhost:3000/navigation/calculate",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ source: src, destination: dst, avoidTolls }),
-          }
+          },
+          { token, refreshToken, refreshSession, logout } // ← contexte auth
         );
-        // Correction : gestion d'erreur serveur
+
         if (!response.ok) {
           const text = await response.text();
           throw new Error(
-            `Erreur lors du calcul d'itinéraire (${response.status}): ${text}`
+            `Erreur lors du calcul d'itinéraire (${response.status}) : ${text}`
           );
         }
 
@@ -155,7 +157,7 @@ function RouteCalculator({ socket }) {
         const calculatedRoutes = data.routes || [];
         setRoutes(calculatedRoutes);
 
-        // (Re)abonnement pour la première alternative
+        // 3/ Abonnement WebSocket pour la 1ʳᵉ route (inchangé)
         if (socket && calculatedRoutes.length > 0) {
           const firstGeometry = calculatedRoutes[0].geometry;
           if (firstGeometry?.type === "LineString") {
@@ -175,7 +177,16 @@ function RouteCalculator({ socket }) {
         if (!silent) setLoading(false);
       }
     },
-    [sourceInput, destinationInput, avoidTolls, socket]
+    [
+      sourceInput,
+      destinationInput,
+      avoidTolls,
+      socket,
+      token,
+      refreshToken,
+      refreshSession,
+      logout,
+    ]
   );
 
   // ----------------------------------------------
@@ -352,62 +363,81 @@ function RouteCalculator({ socket }) {
                 background: "white",
                 borderRadius: "12px",
                 padding: "20px",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.1)"
+                boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
               }}
             >
-              <div className="route-header" style={{ 
-                display: "flex", 
-                justifyContent: "space-between",
-                marginBottom: "15px",
-                padding: "0 0 15px 0",
-                borderBottom: "1px solid #eee"
-              }}>
+              <div
+                className="route-header"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "15px",
+                  padding: "0 0 15px 0",
+                  borderBottom: "1px solid #eee",
+                }}
+              >
                 <div>
                   <h4 style={{ margin: "0 0 5px 0", color: "#2c3e50" }}>
-                    {idx === 0 ? "Itinéraire recommandé" : `Alternative ${idx + 1}`}
+                    {idx === 0
+                      ? "Itinéraire recommandé"
+                      : `Alternative ${idx + 1}`}
                   </h4>
                   <span style={{ color: "#7f8c8d" }}>
-                    {rt.distance} • {(() => {
-                      console.log("Type de durée:", typeof rt.duration, "Valeur:", rt.duration);
+                    {rt.distance} •{" "}
+                    {(() => {
+                      console.log(
+                        "Type de durée:",
+                        typeof rt.duration,
+                        "Valeur:",
+                        rt.duration
+                      );
                       return formatDuration(rt.duration);
                     })()}
                   </span>
                 </div>
-                <div style={{ 
-                  padding: "4px 12px",
-                  borderRadius: "15px",
-                  background: rt.recalculated ? "#fff3cd" : "#d4edda",
-                  color: rt.recalculated ? "#856404" : "#155724",
-                  fontSize: "0.9em"
-                }}>
+                <div
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "15px",
+                    background: rt.recalculated ? "#fff3cd" : "#d4edda",
+                    color: rt.recalculated ? "#856404" : "#155724",
+                    fontSize: "0.9em",
+                  }}
+                >
                   {rt.recalculated ? "Recalculé" : "Optimal"}
                 </div>
               </div>
-              
+
               <div className="route-instructions">
                 {rt.instructions.map((instr, i) => (
-                  <div key={i} style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    padding: "12px 0",
-                    borderBottom: i < rt.instructions.length - 1 ? "1px solid #f5f6fa" : "none"
-                  }}>
-                    <div style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "50%",
-                      background: "#f1f2f6",
+                  <div
+                    key={i}
+                    style={{
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: "15px",
-                      flexShrink: 0
-                    }}>
+                      alignItems: "flex-start",
+                      padding: "12px 0",
+                      borderBottom:
+                        i < rt.instructions.length - 1
+                          ? "1px solid #f5f6fa"
+                          : "none",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        background: "#f1f2f6",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: "15px",
+                        flexShrink: 0,
+                      }}
+                    >
                       {i + 1}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      {translateInstruction(instr)}
-                    </div>
+                    <div style={{ flex: 1 }}>{translateInstruction(instr)}</div>
                   </div>
                 ))}
               </div>
@@ -434,15 +464,12 @@ function RouteCalculator({ socket }) {
           >
             {qrLoading ? "Génération du QR code…" : "Partager l'itinéraire"}
           </button>
-          
+
           {/* -------  QR code de partage ------- */}
           {qrCode && (
             <div className="qr-section">
               <h4>QR code de partage</h4>
-              <img
-                src={qrCode}
-                alt="QR code itinéraire"
-              />
+              <img src={qrCode} alt="QR code itinéraire" />
               {shareId && (
                 <p>
                   Lien de partage :{" "}

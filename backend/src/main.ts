@@ -90,7 +90,9 @@ async function bootstrap() {
       const isAuthRoute = req.path.startsWith('/auth');
       const isNavBypass =
         req.path.startsWith('/navigation/share') ||
-        req.path.startsWith('/navigation/push');
+        req.path.startsWith('/navigation/push') ||
+        req.path.startsWith('/navigation/calculate');
+
       if (isAuthRoute || isNavBypass) return next();
       return csrfMw(req, res, next);
     });
