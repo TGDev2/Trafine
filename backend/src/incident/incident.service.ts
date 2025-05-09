@@ -239,4 +239,8 @@ export class IncidentService {
       .andWhere("status = 'active'")
       .execute();
   }
+  async deleteAllIncidents(): Promise<void> {
+    // Utiliser une requête SQL directe avec CASCADE pour supprimer les incidents et leurs votes
+    await this.incidentRepository.query('TRUNCATE TABLE incident CASCADE');
+  }
 }

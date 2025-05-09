@@ -128,4 +128,10 @@ export class IncidentController {
     const incident = await this.incidentService.archiveIncident(id);
     return this.toDto(incident);
   }
+
+  @Delete()
+  async deleteAll() {
+    // Logique pour supprimer tous les incidents
+    return await this.incidentService.deleteAllIncidents();
+  }
 }
