@@ -53,7 +53,11 @@ function translateInstruction(instr) {
     .replace("on the left", "sur la gauche")
     .replace("on the right", "sur la droite")
     .replace("at the end of", "à la fin de")
-    .replace("at the end", "à la fin");
+    .replace("at the end", "à la fin")
+    .replace("enter", "entrer")
+    .replace("straight", "tout droit")
+    .replace("your", "votre")
+    .replace("and", "et");
 }
 
 // Fonction pour formater la durée en français
@@ -496,13 +500,7 @@ function RouteCalculator({ socket }) {
             <button
               onClick={handlePush}
               disabled={pushLoading}
-              style={{
-                marginBottom: "20px",
-                background: "white",
-                borderRadius: "12px",
-                padding: "20px",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
-              }}
+              style={{ marginTop: "10px", padding: "8px 12px" }}
             >
               {pushLoading ? "Envoi en cours…" : "Envoyer sur mobile"}
             </button>
