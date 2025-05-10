@@ -9,10 +9,10 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as Location from "expo-location";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { useNavigation } from "expo-router";
 import { API_URL } from "@/constants/API";
+import { authenticatedFetch } from "@/utils/auth";
 
 const INCIDENT_TYPES = [
   { label: "Accident", value: "accident" },
@@ -57,25 +57,16 @@ export default function ReportIncidentScreen() {
   // Envoi du signalement avec authentification
   const handleSubmit = async () => {
     if (!location) {
-      Alert.alert(
+      return Alert.alert(
         "Position inconnue",
         "Impossible de localiser votre position pour le signalement."
       );
-      return;
     }
-
     setSubmitting(true);
     try {
-      const token = await AsyncStorage.getItem("token");
-      if (!token) throw new Error("Utilisateur non authentifié");
-
-      const response = await fetch(`${API_URL}/incidents`, {
-        // ← ici aussi
+      const response = await authenticatedFetch(`${API_URL}/incidents`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: incidentType,
           description,

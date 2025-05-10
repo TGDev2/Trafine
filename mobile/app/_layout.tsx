@@ -1,74 +1,54 @@
-import { Stack, Slot } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Stack, Redirect } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, LogBox, View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-LogBox.ignoreLogs([
-  // nettoie des warnings non-bloquants en dev
-]);
-
-SplashScreen.preventAutoHideAsync();
+import { View, ActivityIndicator } from "react-native";
+import { getAccessToken } from "@/utils/auth";
 
 export default function RootLayout() {
+  // On empêche le splash de se cacher automatiquement
+  SplashScreen.preventAutoHideAsync();
+
+  // État pour suivre si l'utilisateur est authentifié
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  // 1) Charger la police
   const [fontsLoaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 
-  const [isReady, setIsReady] = useState(false);
-  const [splashHidden, setSplashHidden] = useState(false);
-
-  /* ---------- Chargement des ressources ---------- */
+  // 2) Vérifier si l'utilisateur est authentifié
   useEffect(() => {
-    async function prepare() {
-      try {
-        // Suppression du token pour forcer la déconnexion à chaque démarrage
-        await AsyncStorage.removeItem("token");
-      } catch (error) {
-        console.error("Erreur lors de la préparation:", error);
-      } finally {
-        setIsReady(true);
-      }
+    async function checkAuth() {
+      const token = await getAccessToken();
+      setIsAuthenticated(!!token);
     }
-
-    prepare();
+    
+    checkAuth();
   }, []);
 
-  /* ---------- Masquage du splash quand tout est prêt ---------- */
+  // 3) Cacher le splash dès que la police est prête
   useEffect(() => {
-    if (fontsLoaded && isReady && !splashHidden) {
-      SplashScreen.hideAsync().finally(() => setSplashHidden(true));
+    if (fontsLoaded && isAuthenticated !== null) {
+      SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, isReady, splashHidden]);
+  }, [fontsLoaded, isAuthenticated]);
 
-  /* Fallback : quoi qu'il arrive on masque au bout de 5 s */
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (!splashHidden) {
-        SplashScreen.hideAsync().finally(() => setSplashHidden(true));
-      }
-    }, 5000);
-    return () => clearTimeout(id);
-  }, [splashHidden]);
-
-  /* ---------- Loader minimal ---------- */
-  if (!fontsLoaded || !isReady)
+  // 4) Tant que la police n'est pas chargée ou que l'authentification n'est pas vérifiée, on affiche un loader
+  if (!fontsLoaded || isAuthenticated === null) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#0a7ea4" />
       </View>
     );
+  }
 
-  /* ---------- Pile d'écrans ---------- */
+  // 5) Configuration des routes
   return (
     <>
-      <Stack initialRouteName="login">
-        <Stack.Screen
-          name="login"
-          options={{ headerShown: false }}
-        />
+      <Stack>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" options={{ title: "Oops!" }} />
       </Stack>
