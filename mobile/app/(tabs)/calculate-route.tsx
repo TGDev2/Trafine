@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useLocalSearchParams } from "expo-router";
 import {
   View,
   Text,
@@ -22,6 +23,7 @@ import MapView, {
   Region,
 } from "react-native-maps";
 import { API_URL } from "@/constants/API";
+
 /* -------------------- Types -------------------- */
 type LatLng = { latitude: number; longitude: number };
 type CoordinatePair = [number, number];
@@ -72,8 +74,8 @@ function formatDuration(duration: string | number): string {
     } else {
       const hours = Math.floor(minutes / 60);
       const remainingMinutes = minutes % 60;
-      return remainingMinutes > 0 
-        ? `${hours}h ${remainingMinutes}min` 
+      return remainingMinutes > 0
+        ? `${hours}h ${remainingMinutes}min`
         : `${hours}h`;
     }
   }
@@ -87,12 +89,12 @@ function formatDuration(duration: string | number): string {
     } else {
       const hours = Math.floor(minutes / 60);
       const remainingMinutes = minutes % 60;
-      return remainingMinutes > 0 
-        ? `${hours}h ${remainingMinutes}min` 
+      return remainingMinutes > 0
+        ? `${hours}h ${remainingMinutes}min`
         : `${hours}h`;
     }
   }
-  
+
   // Si on ne peut pas extraire un nombre, on retourne la durée telle quelle
   return duration;
 }
@@ -121,6 +123,7 @@ export default function CalculateRouteScreen() {
   const [nextStepIdx, setNextStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showOptions, setShowOptions] = useState(false);
+  const { sharedRoutes } = useLocalSearchParams<{ sharedRoutes?: string }>();
 
   const socketRef = useRef<Socket | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
@@ -194,7 +197,7 @@ export default function CalculateRouteScreen() {
 
       // Formatage explicite des coordonnées source
       const sourceCoords = `${loc.coords.latitude}, ${loc.coords.longitude}`;
-      
+
       // Vérifier si la destination est déjà au format coordonnées (contient une virgule et des nombres)
       let destinationCoords = destination.trim();
       if (!destination.includes(',') || !/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(destination)) {
@@ -210,7 +213,7 @@ export default function CalculateRouteScreen() {
           throw new Error("Impossible de géocoder cette adresse");
         }
       }
-      
+
       const res = await fetch(`${API_URL}/navigation/calculate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -220,12 +223,12 @@ export default function CalculateRouteScreen() {
           avoidTolls,
         }),
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ message: "Erreur de calcul d'itinéraire" }));
         throw new Error(errorData.message || "Erreur de calcul d'itinéraire");
       }
-      
+
       const { routes }: RouteAPIResponse = await res.json();
       setRouteData(routes);
       setNextStepIdx(0);
@@ -285,6 +288,20 @@ export default function CalculateRouteScreen() {
   /* -------- Nettoyage watcher GPS -------- */
   useEffect(() => () => watchRef.current?.remove(), []);
 
+  /* -------- Si on reçoit un itinéraire partagé, on le charge dès le lancement -------- */
+  useEffect(() => {
+    if (sharedRoutes && !routeData) {
+      try {
+        const parsed: RouteResult[] = JSON.parse(sharedRoutes as string);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRouteData(parsed);
+        }
+      } catch {
+        // si JSON invalide, on ignore et on laisse l’utilisateur calculer normalement
+      }
+    }
+  }, [sharedRoutes]);
+
   /* ----------------- Rendu ----------------- */
   if (loadingLocation || !region) {
     return (
@@ -328,10 +345,10 @@ export default function CalculateRouteScreen() {
             />
           )}
         </MapView>
-        
+
         {/* Bouton d'options en haut à gauche */}
-        <TouchableOpacity 
-          style={styles.optionsButton} 
+        <TouchableOpacity
+          style={styles.optionsButton}
           onPress={() => setShowOptions(true)}
         >
           <View style={styles.hamburgerIcon}>
@@ -340,10 +357,10 @@ export default function CalculateRouteScreen() {
             <View style={styles.hamburgerLine}></View>
           </View>
         </TouchableOpacity>
-        
+
         {/* Bouton de recentrage */}
-        <TouchableOpacity 
-          style={styles.recenterButton} 
+        <TouchableOpacity
+          style={styles.recenterButton}
           onPress={() => {
             if (currentLocation) {
               const newRegion = {
@@ -362,7 +379,7 @@ export default function CalculateRouteScreen() {
             <View style={styles.recenterCross}></View>
           </View>
         </TouchableOpacity>
-        
+
         {/* Boutons de zoom */}
         <View style={styles.zoomButtons}>
           <Button title="+" onPress={handleZoomIn} />
@@ -381,7 +398,7 @@ export default function CalculateRouteScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Options d'itinéraire</Text>
-            
+
             <Text style={styles.label}>Destination (adresse ou lat,lon)</Text>
             <TextInput
               style={styles.input}
@@ -389,22 +406,22 @@ export default function CalculateRouteScreen() {
               onChangeText={setDestination}
               placeholder="Ex: Marseille, Paris, 48.8584, 2.2945"
             />
-            
+
             <View style={styles.row}>
               <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
               <Text style={{ marginLeft: 8 }}>Éviter les péages</Text>
             </View>
-            
+
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.cancelButton} 
+              <TouchableOpacity
+                style={styles.cancelButton}
                 onPress={() => setShowOptions(false)}
               >
                 <Text style={styles.buttonText}>Annuler</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.calculateButton} 
+
+              <TouchableOpacity
+                style={styles.calculateButton}
                 onPress={() => {
                   handleCalculateRoute();
                   setShowOptions(false);
