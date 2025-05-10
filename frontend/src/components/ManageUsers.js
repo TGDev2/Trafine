@@ -60,62 +60,106 @@ export default function ManageUsers() {
     }
   };
 
-  if (loading) return <p className="users-table-container">Chargement des utilisateurs…</p>;
-  if (error) return <p className="users-table-container" style={{ color: "crimson" }}>Erreur : {error}</p>;
+  if (loading) return (
+    <div className="users-layout">
+      <div className="users-header">
+        <h1>Trafine – Interface web</h1>
+        <img src="/traffine-icon-noBG.png" alt="Traffine Logo" className="logo" />
+        <nav>
+          <Link to="/" className="header-link">
+            Incidents
+          </Link>
+          <Link to="/stats" className="header-link">
+            Statistiques
+          </Link>
+          <Link to="/itineraire" className="header-link">
+            Itinéraire
+          </Link>
+        </nav>
+      </div>
+      <div className="users-table-container">
+        <p>Chargement des utilisateurs…</p>
+      </div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="users-layout">
+      <div className="users-header">
+        <h1>Trafine – Interface web</h1>
+        <img src="/traffine-icon-noBG.png" alt="Traffine Logo" className="logo" />
+        <nav>
+          <Link to="/" className="header-link">
+            Incidents
+          </Link>
+          <Link to="/stats" className="header-link">
+            Statistiques
+          </Link>
+          <Link to="/itineraire" className="header-link">
+            Itinéraire
+          </Link>
+        </nav>
+      </div>
+      <div className="users-table-container">
+        <p style={{ color: "crimson" }}>Erreur : {error}</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="users-table-container">
-      <h2 className="users-table-title">Gestion des utilisateurs</h2>
-      <Link
-        to="/"
-        className="back-btn"
-        style={{
-          display: "inline-block",
-          marginBottom: "18px",
-          background: "#22313a",
-          color: "#fff",
-          padding: "8px 18px",
-          borderRadius: "4px",
-          textDecoration: "none",
-          border: "1px solid #3d566e",
-          fontWeight: 500,
-          transition: "background 0.2s"
-        }}
-      >
-        ← Retour aux incidents
-      </Link>
-      <table className="users-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Nom d'utilisateur</th>
-            <th>Rôle</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map(({ id, username, role }) => (
-            <tr key={id}>
-              <td>{id}</td>
-              <td>{username}</td>
-              <td>{role}</td>
-              <td>
-                <select
-                  value={role}
-                  disabled={updatingId === id}
-                  onChange={(e) => handleRoleChange(id, e.target.value)}
-                >
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </td>
+    <div className="users-layout">
+      <div className="users-header">
+        <h1>Trafine – Interface web</h1>
+        <img src="/traffine-icon-noBG.png" alt="Traffine Logo" className="logo" />
+        <nav>
+          <Link to="/" className="header-link">
+            Incidents
+          </Link>
+          <Link to="/stats" className="header-link">
+            Statistiques
+          </Link>
+          <Link to="/itineraire" className="header-link">
+            Itinéraire
+          </Link>
+        </nav>
+      </div>
+      
+      <div className="users-table-container">
+        <h2 className="users-table-title">Gestion des utilisateurs</h2>
+        
+        <table className="users-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nom d'utilisateur</th>
+              <th>Rôle</th>
+              <th>Action</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.map(({ id, username, role }) => (
+              <tr key={id}>
+                <td>{id}</td>
+                <td>{username}</td>
+                <td>{role}</td>
+                <td>
+                  <select
+                    value={role}
+                    disabled={updatingId === id}
+                    onChange={(e) => handleRoleChange(id, e.target.value)}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
