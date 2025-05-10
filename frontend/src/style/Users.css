@@ -1,9 +1,77 @@
+/* Structure de mise en page pour correspondre au Dashboard */
+.users-layout {
+  position: relative;
+  padding-top: 60px;
+  display: flex;
+  flex-direction: column; /* Ajout de cette propriété */
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  width: 100%; /* Assure que le conteneur prend toute la largeur */
+}
+
+.users-header {
+  position: fixed; /* Changé de absolute à fixed */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background-color: #2c3e50;
+  color: #ecf0f1;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 999;
+}
+
+.users-header h1 {
+  margin: 0;
+  font-size: 20px;
+  order: 1;
+}
+
+.users-header .logo {
+  height: 40px;
+  width: auto;
+  margin: 0;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3));
+  order: 2;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.users-header .logo:hover {
+  transform: scale(1.05);
+}
+
+.users-header nav {
+  display: flex;
+  gap: 20px;
+  order: 3;
+}
+
+.header-link {
+  color: #ecf0f1;
+  text-decoration: none;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.header-link:hover {
+  background-color: #34495e;
+}
+
 .users-table-container {
-    padding: 32px 24px;
-    background: #2c3e50;
-    min-height: 100vh;
-  }
-  
+  padding: 32px 24px;
+  background: #2c3e50;
+  min-height: calc(100vh - 60px); /* Ajusté pour tenir compte de la hauteur du header */
+  width: 100%; /* Assure que le conteneur prend toute la largeur */
+  box-sizing: border-box; /* Inclut padding dans la largeur */
+}
+
   .users-table-title {
     color: #fff;
     font-size: 2rem;
