@@ -117,7 +117,7 @@ export default function CalculateRouteScreen() {
     };
   }, []);
 
-  /* -------- Calcul d’itinéraire -------- */
+  /* -------- Calcul d'itinéraire -------- */
   const handleCalculateRoute = useCallback(async () => {
     if (!currentLocation || !destination.trim()) return;
     setLoadingRoute(true);
@@ -127,17 +127,40 @@ export default function CalculateRouteScreen() {
       const loc = await Location.getCurrentPositionAsync({});
       setCurrentLocation(loc.coords);
 
+      // Formatage explicite des coordonnées source
+      const sourceCoords = `${loc.coords.latitude}, ${loc.coords.longitude}`;
+      
+      // Vérifier si la destination est déjà au format coordonnées (contient une virgule et des nombres)
+      let destinationCoords = destination.trim();
+      if (!destination.includes(',') || !/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(destination)) {
+        // C'est une adresse, il faut la géocoder
+        try {
+          const geocodeResult = await Location.geocodeAsync(destination);
+          if (geocodeResult && geocodeResult.length > 0) {
+            destinationCoords = `${geocodeResult[0].latitude}, ${geocodeResult[0].longitude}`;
+          } else {
+            throw new Error("Adresse introuvable");
+          }
+        } catch (geocodeError) {
+          throw new Error("Impossible de géocoder cette adresse");
+        }
+      }
+      
       const res = await fetch(`${API_URL}/navigation/calculate`, {
-        // ← ici aussi
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          source: `${loc.coords.latitude},${loc.coords.longitude}`,
-          destination,
+          source: sourceCoords,
+          destination: destinationCoords,
           avoidTolls,
         }),
       });
-      if (!res.ok) throw new Error("Erreur de calcul d’itinéraire");
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: "Erreur de calcul d'itinéraire" }));
+        throw new Error(errorData.message || "Erreur de calcul d'itinéraire");
+      }
+      
       const { routes }: RouteAPIResponse = await res.json();
       setRouteData(routes);
       setNextStepIdx(0);
@@ -241,12 +264,12 @@ export default function CalculateRouteScreen() {
 
       {/* ---------- Commandes ---------- */}
       <View style={styles.controls}>
-        <Text style={styles.label}>Destination (lat,lon ou adresse)</Text>
+        <Text style={styles.label}>Destination (adresse ou lat,lon)</Text>
         <TextInput
           style={styles.input}
           value={destination}
           onChangeText={setDestination}
-          placeholder="48.8584, 2.2945"
+          placeholder="Ex: Marseille, Paris, 48.8584, 2.2945"
         />
         <View style={styles.row}>
           <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
