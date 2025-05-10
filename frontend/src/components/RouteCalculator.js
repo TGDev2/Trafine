@@ -44,7 +44,7 @@ function translateInstruction(instr) {
     .replace("arrive at", "arrivée à")
     .replace("arrive at the", "arrivée à")
     .replace("take the", "prendre la")
-    .replace(" 1rst", " première")
+    .replace(" 1st", " première")
     .replace(" 2nd", " deuxième")
     .replace(" 3rd", " troisième")
     .replace(" 4th", " quatrième")
@@ -57,7 +57,7 @@ function translateInstruction(instr) {
     .replace("enter", "entrer")
     .replace("straight", "tout droit")
     .replace("your", "votre")
-    .replace("and", "et");
+    .replace("and", "et")
 }
 
 // Fonction pour formater la durée en français

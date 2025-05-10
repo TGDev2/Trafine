@@ -1,6 +1,7 @@
-import { Tabs } from "expo-router";
-import React from "react";
+import { Tabs, useRouter } from "expo-router";
+import React, { useEffect } from "react";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { HapticTab } from "@/components/HapticTab";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -10,6 +11,26 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+
+  // Vérifier l'authentification au chargement des onglets
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        // Vérifier explicitement si le token est null ou undefined
+        if (!token || token === "undefined" || token === "null") {
+          // Si pas de token valide, rediriger vers login
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification du token:", error);
+        router.replace("/login");
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
 
   return (
     <Tabs
@@ -50,19 +71,6 @@ export default function TabLayout() {
           title: "Itinéraire",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="chevron.right" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: "Explore",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={28}
-              name="chevron.left.forwardslash.chevron.right"
-              color={color}
-            />
           ),
         }}
       />
