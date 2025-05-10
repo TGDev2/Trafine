@@ -61,6 +61,42 @@ function haversine(a: LatLng, b: LatLng): number {
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
+
+/** Formater le temps en heures et minutes */
+function formatDuration(duration: string | number): string {
+  // Si c'est un nombre, on le traite comme des minutes
+  if (typeof duration === 'number') {
+    const minutes = duration;
+    if (minutes < 60) {
+      return `${minutes} min`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 
+        ? `${hours}h ${remainingMinutes}min` 
+        : `${hours}h`;
+    }
+  }
+
+  // Si c'est une chaîne, on extrait le nombre
+  const match = duration.match(/(\d+)/);
+  if (match) {
+    const minutes = parseInt(match[1]);
+    if (minutes < 60) {
+      return `${minutes} min`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 
+        ? `${hours}h ${remainingMinutes}min` 
+        : `${hours}h`;
+    }
+  }
+  
+  // Si on ne peut pas extraire un nombre, on retourne la durée telle quelle
+  return duration;
+}
+
 /** Renvoie le prochain index d’étape à atteindre (< 25 m). */
 function nextIdx(steps: RouteStep[], pos: LatLng, idx: number): number {
   const n = Math.min(idx + 1, steps.length - 1);
@@ -305,6 +341,28 @@ export default function CalculateRouteScreen() {
           </View>
         </TouchableOpacity>
         
+        {/* Bouton de recentrage */}
+        <TouchableOpacity 
+          style={styles.recenterButton} 
+          onPress={() => {
+            if (currentLocation) {
+              const newRegion = {
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              };
+              setRegion(newRegion);
+              mapRef.current?.animateToRegion(newRegion, 300);
+            }
+          }}
+        >
+          <View style={styles.recenterIcon}>
+            <View style={styles.recenterCircle}></View>
+            <View style={styles.recenterCross}></View>
+          </View>
+        </TouchableOpacity>
+        
         {/* Boutons de zoom */}
         <View style={styles.zoomButtons}>
           <Button title="+" onPress={handleZoomIn} />
@@ -363,6 +421,13 @@ export default function CalculateRouteScreen() {
       <View style={styles.instructionContainer}>
         {route && step ? (
           <View style={styles.instruction}>
+            {/* Temps de trajet estimé */}
+            <Text style={styles.estimatedTime}>
+              Temps estimé: {formatDuration(route.duration)}
+            </Text>
+            <Text style={styles.estimatedTime}>
+              Distance: {route.distance}
+            </Text>
             <Text style={styles.instructionTitle}>Prochaine instruction</Text>
             <Text style={styles.instructionText}>{step.instruction}</Text>
             <Text style={styles.instructionSub}>
@@ -517,5 +582,54 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "white",
     fontWeight: "bold",
+  },
+  recenterButton: {
+    position: "absolute",
+    top: 40,
+    right: 16,
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 10,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recenterIcon: {
+    width: 20,
+    height: 20,
+    position: "relative",
+  },
+  recenterCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#0a7ea4",
+    position: "absolute",
+    top: 2,
+    left: 2,
+  },
+  recenterCross: {
+    width: 10,
+    height: 10,
+    position: "absolute",
+    top: 5,
+    left: 5,
+    borderColor: "#0a7ea4",
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+  },
+  estimatedTime: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 8,
+    fontWeight: "bold",
+    textAlign: "left",
   },
 });
