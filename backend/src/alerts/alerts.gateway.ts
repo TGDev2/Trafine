@@ -8,6 +8,7 @@ import {
 import { UseGuards, Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
 import type { Feature, LineString } from 'geojson';
+import { JwtService } from '@nestjs/jwt';
 import { Incident } from '../incident/incident.entity';
 import { JwtWsGuard } from '../auth/jwt-ws.guard';
 import { isIncidentNearRoute } from './route.utils';
@@ -20,7 +21,8 @@ interface RouteSubscription {
 
 @WebSocketGateway()
 @UseGuards(JwtWsGuard)
-export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class AlertsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
@@ -29,11 +31,13 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly subscriptions = new Map<string, RouteSubscription>();
   private readonly userSockets = new Map<number, Set<string>>();
 
+  constructor(private readonly jwt: JwtService) { }
+
   /* ------------------------------------------------------------------
    *  Connexion / Déconnexion
    * -----------------------------------------------------------------*/
   handleConnection(client: Socket) {
-    /* CORS strict en production */
+    /* ------------------------  CORS  ------------------------ */
     const allowed =
       process.env.ALLOWED_WEB_ORIGINS?.split(',').map((u) => u.trim()) || [];
     const origin = client.handshake.headers.origin;
@@ -46,13 +50,36 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    /* Mapping userId ⇆ socket */
-    const user = (client.data as any)?.user;
-    if (user?.userId) {
-      const set = this.userSockets.get(user.userId) ?? new Set<string>();
-      set.add(client.id);
-      this.userSockets.set(user.userId, set);
-      this.log.debug(`Socket ${client.id} mapped to user ${user.userId}`);
+    /* ---------------------  Auth JWT  ----------------------- */
+    const raw = client.handshake.auth?.token as string | undefined
+      || (client.handshake as any)?.query?.token                 // fallback ?token=...
+      || client.handshake.headers.authorization as string | undefined;
+
+    const token = raw?.startsWith('Bearer ') ? raw.slice(7) : raw;
+
+    if (token) {
+      try {
+        const payload = this.jwt.verify<{
+          sub: number;
+          username: string;
+          role: string;
+        }>(token);
+
+        /* Stockage dans `client.data.user` pour les events gardés */
+        client.data.user = {
+          userId: payload.sub,
+          username: payload.username,
+          role: payload.role,
+        };
+
+        /* Mapping userId ⇆ socket (multi-device support) */
+        const set = this.userSockets.get(payload.sub) ?? new Set<string>();
+        set.add(client.id);
+        this.userSockets.set(payload.sub, set);
+        this.log.debug(`Socket ${client.id} mapped to user ${payload.sub}`);
+      } catch {
+        // JWT invalide → pas de mapping. Les events protégés seront bloqués
+      }
     }
 
     this.log.debug(`Client connecté: ${client.id}`);
@@ -110,7 +137,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /* ------------------------------------------------------------------
-   *  **NOUVEAU** : partage d’itinéraire à un utilisateur
+   *  Partage d’itinéraire à un utilisateur
    * -----------------------------------------------------------------*/
   sendRouteToUser(userId: number, routes: RouteResult[]): void {
     const sockIds = this.userSockets.get(userId);
