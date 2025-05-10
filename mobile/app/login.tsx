@@ -153,6 +153,15 @@ export default function LoginScreen() {
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity 
+          onPress={() => router.push('/register')}
+          style={styles.registerLink}
+        >
+          <Text style={styles.registerLinkText}>
+            Nouveau ? Créer un compte
+          </Text>
+        </TouchableOpacity>
+
         <View style={styles.divider}>
           <View style={styles.line} />
           <Text style={styles.orText}>OU</Text>
@@ -250,5 +259,13 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontSize: 16,
     color: "#333",
+  },
+  registerLink: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  registerLinkText: {
+    color: '#4c6ef5',
+    fontSize: 16,
   },
 });
