@@ -10,6 +10,8 @@ import {
   Switch,
   Dimensions,
   Vibration,
+  TouchableOpacity,
+  Modal,
 } from "react-native";
 import * as Location from "expo-location";
 import { io, Socket } from "socket.io-client";
@@ -82,9 +84,36 @@ export default function CalculateRouteScreen() {
   const [routeData, setRouteData] = useState<RouteResult[] | null>(null);
   const [nextStepIdx, setNextStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showOptions, setShowOptions] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+  const mapRef = useRef<MapView | null>(null);
+
+  // Fonctions pour zoomer et dézoomer
+  const handleZoomIn = useCallback(() => {
+    if (region) {
+      const newRegion = {
+        ...region,
+        latitudeDelta: region.latitudeDelta / 2,
+        longitudeDelta: region.longitudeDelta / 2,
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 300);
+    }
+  }, [region]);
+
+  const handleZoomOut = useCallback(() => {
+    if (region) {
+      const newRegion = {
+        ...region,
+        latitudeDelta: region.latitudeDelta * 2,
+        longitudeDelta: region.longitudeDelta * 2,
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 300);
+    }
+  }, [region]);
 
   /* -------- Position initiale -------- */
   useEffect(() => {
@@ -236,49 +265,103 @@ export default function CalculateRouteScreen() {
   return (
     <View style={styles.screen}>
       {/* ---------- Carte ---------- */}
-      <MapView
-        style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        region={region}
-        onRegionChangeComplete={setRegion}
-      >
-        {route && (
-          <Polyline
-            coordinates={route.geometry.coordinates.map(
-              ([lon, lat]): LatLng => ({ latitude: lat, longitude: lon })
-            )}
-            strokeWidth={6}
-          />
-        )}
-        {currentLocation && (
-          <Marker
-            coordinate={{
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-            }}
-            title="Moi"
-            pinColor="blue"
-          />
-        )}
-      </MapView>
-
-      {/* ---------- Commandes ---------- */}
-      <View style={styles.controls}>
-        <Text style={styles.label}>Destination (adresse ou lat,lon)</Text>
-        <TextInput
-          style={styles.input}
-          value={destination}
-          onChangeText={setDestination}
-          placeholder="Ex: Marseille, Paris, 48.8584, 2.2945"
-        />
-        <View style={styles.row}>
-          <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
-          <Text style={{ marginLeft: 8 }}>Éviter les péages</Text>
+      <View style={styles.mapContainer}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={PROVIDER_GOOGLE}
+          region={region}
+          onRegionChangeComplete={setRegion}
+        >
+          {route && (
+            <Polyline
+              coordinates={route.geometry.coordinates.map(
+                ([lon, lat]): LatLng => ({ latitude: lat, longitude: lon })
+              )}
+              strokeWidth={6}
+            />
+          )}
+          {currentLocation && (
+            <Marker
+              coordinate={{
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+              }}
+              title="Moi"
+              pinColor="blue"
+            />
+          )}
+        </MapView>
+        
+        {/* Bouton d'options en haut à gauche */}
+        <TouchableOpacity 
+          style={styles.optionsButton} 
+          onPress={() => setShowOptions(true)}
+        >
+          <View style={styles.hamburgerIcon}>
+            <View style={styles.hamburgerLine}></View>
+            <View style={styles.hamburgerLine}></View>
+            <View style={styles.hamburgerLine}></View>
+          </View>
+        </TouchableOpacity>
+        
+        {/* Boutons de zoom */}
+        <View style={styles.zoomButtons}>
+          <Button title="+" onPress={handleZoomIn} />
+          <View style={{ height: 8 }} />
+          <Button title="-" onPress={handleZoomOut} />
         </View>
-        <Button title="Calculer l’itinéraire" onPress={handleCalculateRoute} />
+      </View>
 
-        {/* ---------- Instruction ---------- */}
-        {route && step && (
+      {/* Modal pour les options */}
+      <Modal
+        visible={showOptions}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowOptions(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Options d'itinéraire</Text>
+            
+            <Text style={styles.label}>Destination (adresse ou lat,lon)</Text>
+            <TextInput
+              style={styles.input}
+              value={destination}
+              onChangeText={setDestination}
+              placeholder="Ex: Marseille, Paris, 48.8584, 2.2945"
+            />
+            
+            <View style={styles.row}>
+              <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
+              <Text style={{ marginLeft: 8 }}>Éviter les péages</Text>
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton} 
+                onPress={() => setShowOptions(false)}
+              >
+                <Text style={styles.buttonText}>Annuler</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.calculateButton} 
+                onPress={() => {
+                  handleCalculateRoute();
+                  setShowOptions(false);
+                }}
+              >
+                <Text style={styles.buttonText}>Calculer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ---------- Instructions (en bas de l'écran) ---------- */}
+      <View style={styles.instructionContainer}>
+        {route && step ? (
           <View style={styles.instruction}>
             <Text style={styles.instructionTitle}>Prochaine instruction</Text>
             <Text style={styles.instructionText}>{step.instruction}</Text>
@@ -286,22 +369,85 @@ export default function CalculateRouteScreen() {
               Dans {Math.round(step.distance)} m
             </Text>
           </View>
+        ) : (
+          <View style={styles.noRouteContainer}>
+            <Text style={styles.noRouteText}>
+              Appuyez sur le bouton en haut à gauche pour définir votre destination
+            </Text>
+            {loadingRoute && <ActivityIndicator style={{ marginTop: 8 }} />}
+            {error && <Text style={styles.error}>Erreur : {error}</Text>}
+          </View>
         )}
-
-        {loadingRoute && <ActivityIndicator style={{ marginTop: 8 }} />}
-        {error && <Text style={styles.error}>Erreur : {error}</Text>}
       </View>
     </View>
   );
 }
 
 /* ----------------- Styles ----------------- */
-const { height } = Dimensions.get("window");
-const mapH = height * 0.45;
+const { height, width } = Dimensions.get("window");
+const mapH = height * 0.75; // Carte plus grande
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#fff" },
-  map: { width: "100%", height: mapH },
-  controls: { flex: 1, padding: 12 },
+  mapContainer: { width: "100%", height: mapH, position: "relative" },
+  map: { width: "100%", height: "100%" },
+  optionsButton: {
+    position: "absolute",
+    top: 40, // Modifié de 16 à 26 pour descendre de 10 pixels
+    left: 16,
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 10,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  hamburgerIcon: {
+    width: 20,
+    height: 15,
+    justifyContent: "space-between",
+  },
+  hamburgerLine: {
+    width: "100%",
+    height: 2,
+    backgroundColor: "#0a7ea4",
+    borderRadius: 1,
+  },
+  optionsButtonText: {
+    fontWeight: "bold",
+    color: "#0a7ea4",
+  },
+  zoomButtons: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 8,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  instructionContainer: {
+    flex: 1,
+    padding: 12,
+    justifyContent: "center",
+  },
+  noRouteContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noRouteText: {
+    textAlign: "center",
+    color: "#555",
+  },
   loader: { flex: 1, justifyContent: "center", alignItems: "center" },
   row: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
   label: { fontWeight: "bold", marginTop: 8 },
@@ -314,7 +460,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   instruction: {
-    marginTop: 12,
     padding: 12,
     borderWidth: 1,
     borderColor: "#0d6efd",
@@ -325,4 +470,52 @@ const styles = StyleSheet.create({
   instructionText: { fontSize: 16 },
   instructionSub: { fontSize: 12, color: "#555" },
   error: { color: "crimson", marginTop: 8 },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    width: width * 0.9,
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+  },
+  cancelButton: {
+    backgroundColor: "#6c757d",
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginRight: 10,
+    alignItems: "center",
+  },
+  calculateButton: {
+    backgroundColor: "#0a7ea4",
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginLeft: 10,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
 });
