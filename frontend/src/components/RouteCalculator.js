@@ -403,14 +403,15 @@ function RouteCalculator({ socket }) {
 
           {/* Options */}
           <div>
-            <label>
+            <label className="modern-checkbox-container">
               <input
                 type="checkbox"
                 checked={avoidTolls}
                 onChange={(e) => setAvoidTolls(e.target.checked)}
-                style={{ marginRight: "5px" }}
+                className="modern-checkbox-input"
               />
-              Éviter les péages
+              <span className="modern-checkbox-custom"></span>
+              <span className="modern-checkbox-label">Éviter les péages</span>
             </label>
           </div>
 

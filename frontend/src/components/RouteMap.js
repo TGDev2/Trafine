@@ -2,7 +2,7 @@ import React from "react";
 import { MapContainer, TileLayer, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-export default function RouteMap({ routes }) {
+export default function RouteMap({ routes, className = '' }) {
   if (!routes || routes.length === 0) {
     return null;
   }
@@ -15,7 +15,7 @@ export default function RouteMap({ routes }) {
   const center = [firstCoords[1], firstCoords[0]];
 
   return (
-    <div style={{ height: "400px", width: "100%", marginBottom: "20px" }}>
+    <div style={{ height: "400px", width: "100%", marginBottom: "20px" }} className={className}>
       <MapContainer
         center={center}
         zoom={13}
