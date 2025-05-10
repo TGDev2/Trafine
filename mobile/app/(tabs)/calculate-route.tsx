@@ -10,6 +10,8 @@ import {
   Switch,
   Dimensions,
   Vibration,
+  TouchableOpacity,
+  Modal,
 } from "react-native";
 import * as Location from "expo-location";
 import { io, Socket } from "socket.io-client";
@@ -59,6 +61,42 @@ function haversine(a: LatLng, b: LatLng): number {
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
+
+/** Formater le temps en heures et minutes */
+function formatDuration(duration: string | number): string {
+  // Si c'est un nombre, on le traite comme des minutes
+  if (typeof duration === 'number') {
+    const minutes = duration;
+    if (minutes < 60) {
+      return `${minutes} min`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 
+        ? `${hours}h ${remainingMinutes}min` 
+        : `${hours}h`;
+    }
+  }
+
+  // Si c'est une chaîne, on extrait le nombre
+  const match = duration.match(/(\d+)/);
+  if (match) {
+    const minutes = parseInt(match[1]);
+    if (minutes < 60) {
+      return `${minutes} min`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 
+        ? `${hours}h ${remainingMinutes}min` 
+        : `${hours}h`;
+    }
+  }
+  
+  // Si on ne peut pas extraire un nombre, on retourne la durée telle quelle
+  return duration;
+}
+
 /** Renvoie le prochain index d’étape à atteindre (< 25 m). */
 function nextIdx(steps: RouteStep[], pos: LatLng, idx: number): number {
   const n = Math.min(idx + 1, steps.length - 1);
@@ -82,9 +120,36 @@ export default function CalculateRouteScreen() {
   const [routeData, setRouteData] = useState<RouteResult[] | null>(null);
   const [nextStepIdx, setNextStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showOptions, setShowOptions] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+  const mapRef = useRef<MapView | null>(null);
+
+  // Fonctions pour zoomer et dézoomer
+  const handleZoomIn = useCallback(() => {
+    if (region) {
+      const newRegion = {
+        ...region,
+        latitudeDelta: region.latitudeDelta / 2,
+        longitudeDelta: region.longitudeDelta / 2,
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 300);
+    }
+  }, [region]);
+
+  const handleZoomOut = useCallback(() => {
+    if (region) {
+      const newRegion = {
+        ...region,
+        latitudeDelta: region.latitudeDelta * 2,
+        longitudeDelta: region.longitudeDelta * 2,
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 300);
+    }
+  }, [region]);
 
   /* -------- Position initiale -------- */
   useEffect(() => {
@@ -117,7 +182,7 @@ export default function CalculateRouteScreen() {
     };
   }, []);
 
-  /* -------- Calcul d’itinéraire -------- */
+  /* -------- Calcul d'itinéraire -------- */
   const handleCalculateRoute = useCallback(async () => {
     if (!currentLocation || !destination.trim()) return;
     setLoadingRoute(true);
@@ -127,17 +192,40 @@ export default function CalculateRouteScreen() {
       const loc = await Location.getCurrentPositionAsync({});
       setCurrentLocation(loc.coords);
 
+      // Formatage explicite des coordonnées source
+      const sourceCoords = `${loc.coords.latitude}, ${loc.coords.longitude}`;
+      
+      // Vérifier si la destination est déjà au format coordonnées (contient une virgule et des nombres)
+      let destinationCoords = destination.trim();
+      if (!destination.includes(',') || !/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(destination)) {
+        // C'est une adresse, il faut la géocoder
+        try {
+          const geocodeResult = await Location.geocodeAsync(destination);
+          if (geocodeResult && geocodeResult.length > 0) {
+            destinationCoords = `${geocodeResult[0].latitude}, ${geocodeResult[0].longitude}`;
+          } else {
+            throw new Error("Adresse introuvable");
+          }
+        } catch (geocodeError) {
+          throw new Error("Impossible de géocoder cette adresse");
+        }
+      }
+      
       const res = await fetch(`${API_URL}/navigation/calculate`, {
-        // ← ici aussi
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          source: `${loc.coords.latitude},${loc.coords.longitude}`,
-          destination,
+          source: sourceCoords,
+          destination: destinationCoords,
           avoidTolls,
         }),
       });
-      if (!res.ok) throw new Error("Erreur de calcul d’itinéraire");
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: "Erreur de calcul d'itinéraire" }));
+        throw new Error(errorData.message || "Erreur de calcul d'itinéraire");
+      }
+      
       const { routes }: RouteAPIResponse = await res.json();
       setRouteData(routes);
       setNextStepIdx(0);
@@ -213,72 +301,218 @@ export default function CalculateRouteScreen() {
   return (
     <View style={styles.screen}>
       {/* ---------- Carte ---------- */}
-      <MapView
-        style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        region={region}
-        onRegionChangeComplete={setRegion}
-      >
-        {route && (
-          <Polyline
-            coordinates={route.geometry.coordinates.map(
-              ([lon, lat]): LatLng => ({ latitude: lat, longitude: lon })
-            )}
-            strokeWidth={6}
-          />
-        )}
-        {currentLocation && (
-          <Marker
-            coordinate={{
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-            }}
-            title="Moi"
-            pinColor="blue"
-          />
-        )}
-      </MapView>
-
-      {/* ---------- Commandes ---------- */}
-      <View style={styles.controls}>
-        <Text style={styles.label}>Destination (lat,lon ou adresse)</Text>
-        <TextInput
-          style={styles.input}
-          value={destination}
-          onChangeText={setDestination}
-          placeholder="48.8584, 2.2945"
-        />
-        <View style={styles.row}>
-          <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
-          <Text style={{ marginLeft: 8 }}>Éviter les péages</Text>
+      <View style={styles.mapContainer}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={PROVIDER_GOOGLE}
+          region={region}
+          onRegionChangeComplete={setRegion}
+        >
+          {route && (
+            <Polyline
+              coordinates={route.geometry.coordinates.map(
+                ([lon, lat]): LatLng => ({ latitude: lat, longitude: lon })
+              )}
+              strokeWidth={6}
+            />
+          )}
+          {currentLocation && (
+            <Marker
+              coordinate={{
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+              }}
+              title="Moi"
+              pinColor="blue"
+            />
+          )}
+        </MapView>
+        
+        {/* Bouton d'options en haut à gauche */}
+        <TouchableOpacity 
+          style={styles.optionsButton} 
+          onPress={() => setShowOptions(true)}
+        >
+          <View style={styles.hamburgerIcon}>
+            <View style={styles.hamburgerLine}></View>
+            <View style={styles.hamburgerLine}></View>
+            <View style={styles.hamburgerLine}></View>
+          </View>
+        </TouchableOpacity>
+        
+        {/* Bouton de recentrage */}
+        <TouchableOpacity 
+          style={styles.recenterButton} 
+          onPress={() => {
+            if (currentLocation) {
+              const newRegion = {
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              };
+              setRegion(newRegion);
+              mapRef.current?.animateToRegion(newRegion, 300);
+            }
+          }}
+        >
+          <View style={styles.recenterIcon}>
+            <View style={styles.recenterCircle}></View>
+            <View style={styles.recenterCross}></View>
+          </View>
+        </TouchableOpacity>
+        
+        {/* Boutons de zoom */}
+        <View style={styles.zoomButtons}>
+          <Button title="+" onPress={handleZoomIn} />
+          <View style={{ height: 8 }} />
+          <Button title="-" onPress={handleZoomOut} />
         </View>
-        <Button title="Calculer l’itinéraire" onPress={handleCalculateRoute} />
+      </View>
 
-        {/* ---------- Instruction ---------- */}
-        {route && step && (
+      {/* Modal pour les options */}
+      <Modal
+        visible={showOptions}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowOptions(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Options d'itinéraire</Text>
+            
+            <Text style={styles.label}>Destination (adresse ou lat,lon)</Text>
+            <TextInput
+              style={styles.input}
+              value={destination}
+              onChangeText={setDestination}
+              placeholder="Ex: Marseille, Paris, 48.8584, 2.2945"
+            />
+            
+            <View style={styles.row}>
+              <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
+              <Text style={{ marginLeft: 8 }}>Éviter les péages</Text>
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton} 
+                onPress={() => setShowOptions(false)}
+              >
+                <Text style={styles.buttonText}>Annuler</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.calculateButton} 
+                onPress={() => {
+                  handleCalculateRoute();
+                  setShowOptions(false);
+                }}
+              >
+                <Text style={styles.buttonText}>Calculer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ---------- Instructions (en bas de l'écran) ---------- */}
+      <View style={styles.instructionContainer}>
+        {route && step ? (
           <View style={styles.instruction}>
+            {/* Temps de trajet estimé */}
+            <Text style={styles.estimatedTime}>
+              Temps estimé: {formatDuration(route.duration)}
+            </Text>
+            <Text style={styles.estimatedTime}>
+              Distance: {route.distance}
+            </Text>
             <Text style={styles.instructionTitle}>Prochaine instruction</Text>
             <Text style={styles.instructionText}>{step.instruction}</Text>
             <Text style={styles.instructionSub}>
               Dans {Math.round(step.distance)} m
             </Text>
           </View>
+        ) : (
+          <View style={styles.noRouteContainer}>
+            <Text style={styles.noRouteText}>
+              Appuyez sur le bouton en haut à gauche pour définir votre destination
+            </Text>
+            {loadingRoute && <ActivityIndicator style={{ marginTop: 8 }} />}
+            {error && <Text style={styles.error}>Erreur : {error}</Text>}
+          </View>
         )}
-
-        {loadingRoute && <ActivityIndicator style={{ marginTop: 8 }} />}
-        {error && <Text style={styles.error}>Erreur : {error}</Text>}
       </View>
     </View>
   );
 }
 
 /* ----------------- Styles ----------------- */
-const { height } = Dimensions.get("window");
-const mapH = height * 0.45;
+const { height, width } = Dimensions.get("window");
+const mapH = height * 0.75; // Carte plus grande
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#fff" },
-  map: { width: "100%", height: mapH },
-  controls: { flex: 1, padding: 12 },
+  mapContainer: { width: "100%", height: mapH, position: "relative" },
+  map: { width: "100%", height: "100%" },
+  optionsButton: {
+    position: "absolute",
+    top: 40, // Modifié de 16 à 26 pour descendre de 10 pixels
+    left: 16,
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 10,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  hamburgerIcon: {
+    width: 20,
+    height: 15,
+    justifyContent: "space-between",
+  },
+  hamburgerLine: {
+    width: "100%",
+    height: 2,
+    backgroundColor: "#0a7ea4",
+    borderRadius: 1,
+  },
+  optionsButtonText: {
+    fontWeight: "bold",
+    color: "#0a7ea4",
+  },
+  zoomButtons: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 8,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  instructionContainer: {
+    flex: 1,
+    padding: 12,
+    justifyContent: "center",
+  },
+  noRouteContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noRouteText: {
+    textAlign: "center",
+    color: "#555",
+  },
   loader: { flex: 1, justifyContent: "center", alignItems: "center" },
   row: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
   label: { fontWeight: "bold", marginTop: 8 },
@@ -291,7 +525,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   instruction: {
-    marginTop: 12,
     padding: 12,
     borderWidth: 1,
     borderColor: "#0d6efd",
@@ -302,4 +535,101 @@ const styles = StyleSheet.create({
   instructionText: { fontSize: 16 },
   instructionSub: { fontSize: 12, color: "#555" },
   error: { color: "crimson", marginTop: 8 },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    width: width * 0.9,
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+  },
+  cancelButton: {
+    backgroundColor: "#6c757d",
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginRight: 10,
+    alignItems: "center",
+  },
+  calculateButton: {
+    backgroundColor: "#0a7ea4",
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginLeft: 10,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  recenterButton: {
+    position: "absolute",
+    top: 40,
+    right: 16,
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 10,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recenterIcon: {
+    width: 20,
+    height: 20,
+    position: "relative",
+  },
+  recenterCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#0a7ea4",
+    position: "absolute",
+    top: 2,
+    left: 2,
+  },
+  recenterCross: {
+    width: 10,
+    height: 10,
+    position: "absolute",
+    top: 5,
+    left: 5,
+    borderColor: "#0a7ea4",
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+  },
+  estimatedTime: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 8,
+    fontWeight: "bold",
+    textAlign: "left",
+  },
 });
