@@ -16,9 +16,15 @@ export default function TabLayout() {
   // Vérifier l'authentification au chargement des onglets
   useEffect(() => {
     const checkAuth = async () => {
-      const token = await AsyncStorage.getItem("token");
-      if (!token) {
-        // Si pas de token, rediriger vers login
+      try {
+        const token = await AsyncStorage.getItem("token");
+        // Vérifier explicitement si le token est null ou undefined
+        if (!token || token === "undefined" || token === "null") {
+          // Si pas de token valide, rediriger vers login
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification du token:", error);
         router.replace("/login");
       }
     };

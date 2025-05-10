@@ -47,8 +47,14 @@ export default function LoginScreen() {
       }
 
       const data = await response.json();
-      await AsyncStorage.setItem("token", data.token);
-      router.replace("/" as any);
+      
+      // Vérifier que le token existe et n'est pas undefined
+      if (data && data.access_token) {
+        await AsyncStorage.setItem("token", data.access_token);
+        router.replace("/(tabs)");
+      } else {
+        throw new Error("Token invalide reçu du serveur");
+      }
     } catch (error: any) {
       Alert.alert("Erreur", error.message || "Échec de la connexion");
     } finally {
@@ -70,9 +76,9 @@ export default function LoginScreen() {
       const startAsyncFunc = (AuthSession as any).startAsync;
       const result = await startAsyncFunc({ authUrl });
 
-      if (result.type === "success" && result.params.token) {
-        await AsyncStorage.setItem("token", result.params.token);
-        router.replace("/" as any);
+      if (result.type === "success" && result.params.access_token) {
+        await AsyncStorage.setItem("token", result.params.access_token);
+        router.replace("/(tabs)");
       } else {
         Alert.alert("Erreur", "Échec de l'authentification.");
       }
@@ -204,13 +210,12 @@ const styles = StyleSheet.create({
     color: "#777",
   },
   googleButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    paddingVertical: 12,
-    borderRadius: 8,
     width: "100%",
     maxWidth: 400,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 10,
   },
   googleButtonContent: {
     flexDirection: "row",
@@ -223,8 +228,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   googleButtonText: {
-    color: "#333",
     fontSize: 16,
-    fontWeight: "500",
+    color: "#333",
   },
 });
