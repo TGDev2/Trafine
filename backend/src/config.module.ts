@@ -16,14 +16,15 @@ function randomHex(bytes: number): string {
  *  - Identifiants OAuth factices (les vrais seront fournis en production)
  */
 const DEV_DEFAULTS = {
-  ENCRYPTION_KEY: randomHex(16), // 32 caractères
-  JWT_SECRET: randomHex(32), // 64 caractères
+  ENCRYPTION_KEY: randomHex(16),       // 32 car.
+  JWT_SECRET: randomHex(32),       // 64 car.
   GOOGLE_CLIENT_ID: 'dummy-google-id',
   GOOGLE_CLIENT_SECRET: 'dummy-google-secret',
   GOOGLE_CALLBACK_URL: 'http://localhost:3000/auth/google/callback',
   ALLOWED_REDIRECT_URLS: 'http://localhost:3001,myapp://redirect',
   ALLOWED_WEB_ORIGINS: 'http://localhost:3001,http://localhost:19006',
   ORS_BASE_URL: 'https://api.openrouteservice.org',
+  ORS_API_KEY: '',
 };
 
 @Module({
@@ -45,6 +46,7 @@ const DEV_DEFAULTS = {
           return {};
         },
       ],
+      /* ---------------- Validation ---------------- */
       validationSchema: Joi.object({
         NODE_ENV: Joi.string()
           .valid('development', 'test', 'production')
@@ -64,12 +66,8 @@ const DEV_DEFAULTS = {
 
         ENCRYPTION_KEY: Joi.when('NODE_ENV', {
           is: 'test',
-          then: Joi.string()
-            .length(32)
-            .default('TEST_ENCRYPTION_KEY_32_CHARS_!!'),
-          otherwise: Joi.string()
-            .length(32)
-            .default(DEV_DEFAULTS.ENCRYPTION_KEY),
+          then: Joi.string().length(32).default('TEST_ENCRYPTION_KEY_32_CHARS_!!'),
+          otherwise: Joi.string().length(32).default(DEV_DEFAULTS.ENCRYPTION_KEY),
         }),
 
         GOOGLE_CLIENT_ID: Joi.when('NODE_ENV', {
@@ -82,16 +80,13 @@ const DEV_DEFAULTS = {
           then: Joi.string().required(),
           otherwise: Joi.string().default(DEV_DEFAULTS.GOOGLE_CLIENT_SECRET),
         }),
-        GOOGLE_CALLBACK_URL: Joi.string()
-          .uri()
-          .default(DEV_DEFAULTS.GOOGLE_CALLBACK_URL),
+
+        GOOGLE_CALLBACK_URL: Joi.string().uri().default(DEV_DEFAULTS.GOOGLE_CALLBACK_URL),
 
         ADMIN_USERNAME: Joi.string().default('admin'),
         ADMIN_PASSWORD: Joi.string().min(4).default('admin'),
 
-        ALLOWED_REDIRECT_URLS: Joi.string().default(
-          DEV_DEFAULTS.ALLOWED_REDIRECT_URLS,
-        ),
+        ALLOWED_REDIRECT_URLS: Joi.string().default(DEV_DEFAULTS.ALLOWED_REDIRECT_URLS),
 
         // CORS : liste d’origines autorisées pour le web/frontend
         ALLOWED_WEB_ORIGINS: Joi.when('NODE_ENV', {
@@ -100,11 +95,15 @@ const DEV_DEFAULTS = {
           otherwise: Joi.string().default(DEV_DEFAULTS.ALLOWED_WEB_ORIGINS),
         }),
 
-        ORS_BASE_URL: Joi.string()
-          .uri()
-          .default('https://api.openrouteservice.org'),
+        /* ---- OpenRouteService ---- */
+        ORS_BASE_URL: Joi.string().uri().default(DEV_DEFAULTS.ORS_BASE_URL),
+        ORS_API_KEY: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),  // obligatoire en prod
+          otherwise: Joi.string().allow('').default(DEV_DEFAULTS.ORS_API_KEY),
+        }),
       }),
     }),
   ],
 })
-export class AppConfigModule {}
+export class AppConfigModule { }
