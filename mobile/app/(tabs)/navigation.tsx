@@ -7,6 +7,8 @@ import {
   Text,
   Vibration,
   Button,
+  TouchableOpacity,
+  Modal,
 } from "react-native";
 import MapView, { Marker, Callout, Region } from "react-native-maps";
 import { io, Socket } from "socket.io-client";
@@ -34,11 +36,20 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 8,
 };
 
+const INCIDENT_TYPES = {
+  TRAFFIC: "Embouteillage",
+  ACCIDENT: "Accident",
+  OBSTACLE: "Obstacle",
+  POLICE: "Contrôle de police",
+  CLOSED: "Route fermée"
+};
+
 export default function NavigationScreen() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentLocation, setCurrentLocation] = useState<Region | null>(null);
   const [voteLoadingId, setVoteLoadingId] = useState<number | null>(null);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
 
   useEffect(() => {
     // Connexion WebSocket sécurisée
@@ -126,6 +137,34 @@ export default function NavigationScreen() {
     }
   };
 
+  // Fonction pour signaler un incident
+  const reportIncident = async (type: string) => {
+    if (!currentLocation) return;
+    
+    try {
+      const response = await authenticatedFetch(`${API_URL}/incidents`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type,
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Échec du signalement");
+
+      const newIncident = await response.json();
+      setIncidents(prev => [...prev, newIncident]);
+      setShowIncidentModal(false);
+      Alert.alert("Succès", "Incident signalé avec succès");
+    } catch (error: any) {
+      Alert.alert("Erreur", error.message);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -135,60 +174,106 @@ export default function NavigationScreen() {
   }
 
   return (
-    <MapView
-      style={styles.map}
-      initialRegion={currentLocation ?? DEFAULT_REGION}
-    >
-      {incidents.map((incident) => (
-        <Marker
-          key={incident.id}
-          coordinate={{
-            latitude: incident.latitude,
-            longitude: incident.longitude,
-          }}
-        >
-          <Callout>
-            <View style={styles.callout}>
-              <Text style={styles.title}>{incident.type}</Text>
-              <Text style={styles.description}>
-                {incident.description || "Sans description"}
-              </Text>
-              <Text style={styles.status}>
-                Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf:
-                {incident.denied ? "Oui" : "Non"}
-              </Text>
-              <View style={styles.buttonContainer}>
-                <Button
-                  title="Confirmer"
-                  onPress={() => confirmIncident(incident.id)}
-                  disabled={voteLoadingId === incident.id || incident.confirmed}
-                />
-                <Button
-                  title="Infirmer"
-                  onPress={() => denyIncident(incident.id)}
-                  disabled={voteLoadingId === incident.id || incident.denied}
-                />
+    <View style={styles.container}>
+      <MapView
+        style={styles.map}
+        initialRegion={currentLocation ?? DEFAULT_REGION}
+      >
+        {incidents.map((incident) => (
+          <Marker
+            key={incident.id}
+            coordinate={{
+              latitude: incident.latitude,
+              longitude: incident.longitude,
+            }}
+          >
+            <Callout>
+              <View style={styles.callout}>
+                <Text style={styles.title}>{incident.type}</Text>
+                <Text style={styles.description}>
+                  {incident.description || "Sans description"}
+                </Text>
+                <Text style={styles.status}>
+                  Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf:
+                  {incident.denied ? "Oui" : "Non"}
+                </Text>
+                <View style={styles.buttonContainer}>
+                  <Button
+                    title="Confirmer"
+                    onPress={() => confirmIncident(incident.id)}
+                    disabled={voteLoadingId === incident.id || incident.confirmed}
+                  />
+                  <Button
+                    title="Infirmer"
+                    onPress={() => denyIncident(incident.id)}
+                    disabled={voteLoadingId === incident.id || incident.denied}
+                  />
+                </View>
               </View>
+            </Callout>
+          </Marker>
+        ))}
+        {currentLocation && (
+          <Marker
+            coordinate={{
+              latitude: currentLocation.latitude,
+              longitude: currentLocation.longitude,
+            }}
+            title="Ma position"
+            pinColor="blue"
+          />
+        )}
+      </MapView>
+
+      {/* Bouton flottant pour signaler un incident */}
+      <TouchableOpacity
+        style={styles.reportButton}
+        onPress={() => setShowIncidentModal(true)}
+      >
+        <Text style={styles.reportButtonText}>Signaler un incident</Text>
+      </TouchableOpacity>
+
+      {/* Modal pour choisir le type d'incident */}
+      <Modal
+        visible={showIncidentModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowIncidentModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Signaler un incident</Text>
+            <View style={styles.buttonGrid}>
+              {Object.entries(INCIDENT_TYPES).map(([key, label]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.incidentButton}
+                  onPress={() => reportIncident(label)}
+                >
+                  <Text style={styles.incidentButtonText}>{label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </Callout>
-        </Marker>
-      ))}
-      {currentLocation && (
-        <Marker
-          coordinate={{
-            latitude: currentLocation.latitude,
-            longitude: currentLocation.longitude,
-          }}
-          title="Ma position"
-          pinColor="blue"
-        />
-      )}
-    </MapView>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowIncidentModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  map: { flex: 1 },
+  container: {
+    flex: 1,
+  },
+  map: { 
+    flex: 1 
+  },
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
@@ -202,5 +287,70 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 6,
+  },
+  reportButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#0a7ea4',
+    padding: 15,
+    borderRadius: 25,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  reportButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  buttonGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  incidentButton: {
+    width: '48%',
+    backgroundColor: '#0a7ea4',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  incidentButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#ccc',
+    width: '100%',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
