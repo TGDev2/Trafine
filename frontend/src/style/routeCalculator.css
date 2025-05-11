@@ -65,15 +65,19 @@
 
 /* Conteneur principal du calculateur d'itinéraire */
 .route-calc-container {
-  max-width: 1800px; /* Augmenté de 1400px à 1800px */
+  max-width: 1800px;
+  /* Augmenté de 1400px à 1800px */
   min-width: 500px;
-  margin: 10px auto; /* Réduit de 20px à 10px */
+  margin: 10px auto;
+  /* Réduit de 20px à 10px */
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(44, 62, 80, 0.13);
-  padding: 30px 30px 30px 30px; /* Réduit de 48px 40px 40px 40px */
+  padding: 30px 30px 30px 30px;
+  /* Réduit de 48px 40px 40px 40px */
   font-family: 'Segoe UI', Arial, sans-serif;
-  width: 95%; /* Ajouté pour occuper plus d'espace horizontal */
+  width: 95%;
+  /* Ajouté pour occuper plus d'espace horizontal */
 }
 
 /* Titre */
@@ -82,7 +86,8 @@
   font-size: 2.2rem;
   color: #2c3e50;
   text-align: center;
-  margin-bottom: 20px; /* Réduit de 28px à 20px */
+  margin-bottom: 20px;
+  /* Réduit de 28px à 20px */
 }
 
 /* Formulaire */
@@ -128,20 +133,25 @@
   font-weight: 600;
   cursor: pointer;
   margin-top: 8px;
-  margin-right: 10px; /* Ajout d'une marge à droite pour espacer les boutons */
+  margin-right: 10px;
+  /* Ajout d'une marge à droite pour espacer les boutons */
   transition: background 0.2s, box-shadow 0.2s;
   box-shadow: 0 2px 8px rgba(44, 62, 80, 0.07);
 }
 
 /* Style pour les boutons dans la section de résultat */
 .route-calc-container .route-result button {
-  margin-right: 15px; /* Espacement uniforme entre les boutons */
-  margin-bottom: 10px; /* Espacement vertical pour l'affichage mobile */
+  margin-right: 15px;
+  /* Espacement uniforme entre les boutons */
+  margin-bottom: 10px;
+  /* Espacement vertical pour l'affichage mobile */
 }
 
 .route-calc-container .route-result button:last-child {
-  margin-right: 0; /* Supprime la marge du dernier bouton */
+  margin-right: 0;
+  /* Supprime la marge du dernier bouton */
 }
+
 .route-calc-container button:disabled {
   background: #b2bec3;
   cursor: not-allowed;
@@ -155,7 +165,8 @@
   border-radius: 10px;
   padding: 22px 18px;
   box-shadow: 0 2px 8px rgba(44, 62, 80, 0.06);
-  overflow: hidden; /* Empêche le débordement des éléments enfants */
+  overflow: hidden;
+  /* Empêche le débordement des éléments enfants */
 }
 
 .route-calc-container .route-result h3 {
@@ -165,8 +176,10 @@
 
 .route-calc-container ul {
   padding-left: 22px;
-  clear: both; /* Force le positionnement sous la carte */
-  margin-top: 650px; /* Espace suffisant pour la carte */
+  clear: both;
+  /* Force le positionnement sous la carte */
+  margin-top: 650px;
+  /* Espace suffisant pour la carte */
 }
 
 .route-calc-container ul li {
@@ -193,7 +206,8 @@
 
 /* QR code section */
 .route-calc-container .qr-section {
-  margin-top: 25px; /* Réduit de 32px à 25px */
+  margin-top: 25px;
+  /* Réduit de 32px à 25px */
   text-align: center;
 }
 
@@ -254,7 +268,7 @@
   border-color: #bbbcc0;
 }
 
-.modern-checkbox-input:checked ~ .modern-checkbox-custom {
+.modern-checkbox-input:checked~.modern-checkbox-custom {
   background-color: #2980b9;
   border-color: #2980b9;
 }
@@ -272,7 +286,7 @@
   transform: rotate(45deg);
 }
 
-.modern-checkbox-input:checked ~ .modern-checkbox-custom:after {
+.modern-checkbox-input:checked~.modern-checkbox-custom:after {
   display: block;
 }
 

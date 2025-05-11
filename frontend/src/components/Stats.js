@@ -95,7 +95,7 @@ export default function Stats() {
       </div>
     );
   }
-  
+
   if (!globalStats) {
     return (
       <div className="stats-layout">
@@ -160,7 +160,7 @@ export default function Stats() {
           </Link>
         </nav>
       </div>
-      
+
       {/* Reste du contenu de votre page */}
       <div className="stats-sidebar">
         <ul className="menu">
@@ -187,8 +187,8 @@ export default function Stats() {
           <div className="stats-actions">
             <button className="modern-btn" onClick={fetchStats}>🔄 Rafraîchir</button>
             {isAdmin && (
-              <button 
-                className="modern-btn reset-btn" 
+              <button
+                className="modern-btn reset-btn"
                 onClick={async () => {
                   if (window.confirm('Êtes-vous sûr de vouloir supprimer tous les incidents ? Cette action est irréversible.')) {
                     try {
