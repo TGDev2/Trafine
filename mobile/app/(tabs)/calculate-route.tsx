@@ -23,6 +23,7 @@ import MapView, {
   Region,
 } from "react-native-maps";
 import { API_URL } from "@/constants/API";
+import { authenticatedFetch } from "@/utils/auth";
 import { styles as importedStyles } from "../styles/style-calcul-route";
 
 /* -------------------- Types -------------------- */
@@ -249,7 +250,7 @@ export default function CalculateRouteScreen() {
         }
       }
 
-      const res = await fetch(`${API_URL}/navigation/calculate`, {
+      const res = await authenticatedFetch(`${API_URL}/navigation/calculate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
