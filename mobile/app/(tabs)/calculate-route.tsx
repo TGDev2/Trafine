@@ -23,6 +23,7 @@ import MapView, {
   Region,
 } from "react-native-maps";
 import { API_URL } from "@/constants/API";
+import { styles as importedStyles } from "../styles/style-calcul-route";
 
 /* -------------------- Types -------------------- */
 type LatLng = { latitude: number; longitude: number };
@@ -67,7 +68,7 @@ function haversine(a: LatLng, b: LatLng): number {
 /** Formater le temps en heures et minutes */
 function formatDuration(duration: string | number): string {
   // Si c'est un nombre, on le traite comme des minutes
-  if (typeof duration === 'number') {
+  if (typeof duration === "number") {
     const minutes = duration;
     if (minutes < 60) {
       return `${minutes} min`;
@@ -108,6 +109,37 @@ function nextIdx(steps: RouteStep[], pos: LatLng, idx: number): number {
   }) < 25
     ? n
     : idx;
+}
+
+/** Traduit les instructions de navigation en français */
+function translateInstruction(instruction: string): string {
+  return instruction
+    .replace(/Continue on/gi, "Continuez sur")
+    .replace(/Head (north|south|east|west)/gi, (_, dir) => {
+      const directions: Record<string, string> = {
+        north: "nord",
+        south: "sud",
+        east: "est",
+        west: "ouest",
+      };
+      return `Dirigez-vous vers le ${
+        directions[dir.toLowerCase() as keyof typeof directions]
+      }`;
+    })
+    .replace(/Turn right/gi, "Tournez à droite")
+    .replace(/Turn left/gi, "Tournez à gauche")
+    .replace(/Slight right/gi, "Légèrement à droite")
+    .replace(/Slight left/gi, "Légèrement à gauche")
+    .replace(/Sharp right/gi, "Virage serré à droite")
+    .replace(/Sharp left/gi, "Virage serré à gauche")
+    .replace(/Make a U-turn/gi, "Faites demi-tour")
+    .replace(/at the roundabout/gi, "au rond-point")
+    .replace(/Take the (\d+)\w+ exit/gi, "Prenez la $1e sortie")
+    .replace(/onto/gi, "sur")
+    .replace(/toward/gi, "vers")
+    .replace(/Arrive at/gi, "Arrivée à")
+    .replace(/destination/gi, "destination")
+    .replace(/You have arrived/gi, "Vous êtes arrivé");
 }
 
 /* ================ Composant principal ================ */
@@ -200,7 +232,10 @@ export default function CalculateRouteScreen() {
 
       // Vérifier si la destination est déjà au format coordonnées (contient une virgule et des nombres)
       let destinationCoords = destination.trim();
-      if (!destination.includes(',') || !/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(destination)) {
+      if (
+        !destination.includes(",") ||
+        !/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(destination)
+      ) {
         // C'est une adresse, il faut la géocoder
         try {
           const geocodeResult = await Location.geocodeAsync(destination);
@@ -225,7 +260,9 @@ export default function CalculateRouteScreen() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: "Erreur de calcul d'itinéraire" }));
+        const errorData = await res
+          .json()
+          .catch(() => ({ message: "Erreur de calcul d'itinéraire" }));
         throw new Error(errorData.message || "Erreur de calcul d'itinéraire");
       }
 
@@ -305,7 +342,7 @@ export default function CalculateRouteScreen() {
   /* ----------------- Rendu ----------------- */
   if (loadingLocation || !region) {
     return (
-      <View style={styles.loader}>
+      <View style={importedStyles.loader}>
         <ActivityIndicator size="large" />
         <Text>Initialisation…</Text>
       </View>
@@ -316,12 +353,12 @@ export default function CalculateRouteScreen() {
   const step = route?.steps[nextStepIdx];
 
   return (
-    <View style={styles.screen}>
+    <View style={importedStyles.screen}>
       {/* ---------- Carte ---------- */}
-      <View style={styles.mapContainer}>
+      <View style={importedStyles.mapContainer}>
         <MapView
           ref={mapRef}
-          style={styles.map}
+          style={importedStyles.map}
           provider={PROVIDER_GOOGLE}
           region={region}
           onRegionChangeComplete={setRegion}
@@ -348,19 +385,19 @@ export default function CalculateRouteScreen() {
 
         {/* Bouton d'options en haut à gauche */}
         <TouchableOpacity
-          style={styles.optionsButton}
+          style={importedStyles.optionsButton}
           onPress={() => setShowOptions(true)}
         >
-          <View style={styles.hamburgerIcon}>
-            <View style={styles.hamburgerLine}></View>
-            <View style={styles.hamburgerLine}></View>
-            <View style={styles.hamburgerLine}></View>
+          <View style={importedStyles.hamburgerIcon}>
+            <View style={importedStyles.hamburgerLine}></View>
+            <View style={importedStyles.hamburgerLine}></View>
+            <View style={importedStyles.hamburgerLine}></View>
           </View>
         </TouchableOpacity>
 
         {/* Bouton de recentrage */}
         <TouchableOpacity
-          style={styles.recenterButton}
+          style={importedStyles.recenterButton}
           onPress={() => {
             if (currentLocation) {
               const newRegion = {
@@ -374,14 +411,14 @@ export default function CalculateRouteScreen() {
             }
           }}
         >
-          <View style={styles.recenterIcon}>
-            <View style={styles.recenterCircle}></View>
-            <View style={styles.recenterCross}></View>
+          <View style={importedStyles.recenterIcon}>
+            <View style={importedStyles.recenterCircle}></View>
+            <View style={importedStyles.recenterCross}></View>
           </View>
         </TouchableOpacity>
 
         {/* Boutons de zoom */}
-        <View style={styles.zoomButtons}>
+        <View style={importedStyles.zoomButtons}>
           <Button title="+" onPress={handleZoomIn} />
           <View style={{ height: 8 }} />
           <Button title="-" onPress={handleZoomOut} />
@@ -395,39 +432,41 @@ export default function CalculateRouteScreen() {
         animationType="slide"
         onRequestClose={() => setShowOptions(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Options d'itinéraire</Text>
+        <View style={importedStyles.modalContainer}>
+          <View style={importedStyles.modalContent}>
+            <Text style={importedStyles.modalTitle}>Options d'itinéraire</Text>
 
-            <Text style={styles.label}>Destination (adresse ou lat,lon)</Text>
+            <Text style={importedStyles.label}>
+              Destination (adresse ou lat,lon)
+            </Text>
             <TextInput
-              style={styles.input}
+              style={importedStyles.input}
               value={destination}
               onChangeText={setDestination}
               placeholder="Ex: Marseille, Paris, 48.8584, 2.2945"
             />
 
-            <View style={styles.row}>
+            <View style={importedStyles.row}>
               <Switch value={avoidTolls} onValueChange={setAvoidTolls} />
               <Text style={{ marginLeft: 8 }}>Éviter les péages</Text>
             </View>
 
-            <View style={styles.modalButtons}>
+            <View style={importedStyles.modalButtons}>
               <TouchableOpacity
-                style={styles.cancelButton}
+                style={importedStyles.cancelButton}
                 onPress={() => setShowOptions(false)}
               >
-                <Text style={styles.buttonText}>Annuler</Text>
+                <Text style={importedStyles.buttonText}>Annuler</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.calculateButton}
+                style={importedStyles.calculateButton}
                 onPress={() => {
                   handleCalculateRoute();
                   setShowOptions(false);
                 }}
               >
-                <Text style={styles.buttonText}>Calculer</Text>
+                <Text style={importedStyles.buttonText}>Calculer</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -435,218 +474,39 @@ export default function CalculateRouteScreen() {
       </Modal>
 
       {/* ---------- Instructions (en bas de l'écran) ---------- */}
-      <View style={styles.instructionContainer}>
+      <View style={importedStyles.instructionContainer}>
         {route && step ? (
-          <View style={styles.instruction}>
+          <View style={importedStyles.instruction}>
             {/* Temps de trajet estimé */}
-            <Text style={styles.estimatedTime}>
+            <Text style={importedStyles.estimatedTime}>
               Temps estimé: {formatDuration(route.duration)}
             </Text>
-            <Text style={styles.estimatedTime}>
+            <Text style={importedStyles.estimatedTime}>
               Distance: {route.distance}
             </Text>
-            <Text style={styles.instructionTitle}>Prochaine instruction</Text>
-            <Text style={styles.instructionText}>{step.instruction}</Text>
-            <Text style={styles.instructionSub}>
+            <Text style={importedStyles.instructionTitle}>
+              Prochaine instruction
+            </Text>
+            <Text style={importedStyles.instructionText}>
+              {translateInstruction(step.instruction)}
+            </Text>
+            <Text style={importedStyles.instructionSub}>
               Dans {Math.round(step.distance)} m
             </Text>
           </View>
         ) : (
-          <View style={styles.noRouteContainer}>
-            <Text style={styles.noRouteText}>
-              Appuyez sur le bouton en haut à gauche pour définir votre destination
+          <View style={importedStyles.noRouteContainer}>
+            <Text style={importedStyles.noRouteText}>
+              Appuyez sur le bouton en haut à gauche pour définir votre
+              destination
             </Text>
             {loadingRoute && <ActivityIndicator style={{ marginTop: 8 }} />}
-            {error && <Text style={styles.error}>Erreur : {error}</Text>}
+            {error && (
+              <Text style={importedStyles.error}>Erreur : {error}</Text>
+            )}
           </View>
         )}
       </View>
     </View>
   );
 }
-
-/* ----------------- Styles ----------------- */
-const { height, width } = Dimensions.get("window");
-const mapH = height * 0.75; // Carte plus grande
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff" },
-  mapContainer: { width: "100%", height: mapH, position: "relative" },
-  map: { width: "100%", height: "100%" },
-  optionsButton: {
-    position: "absolute",
-    top: 40, // Modifié de 16 à 26 pour descendre de 10 pixels
-    left: 16,
-    backgroundColor: "white",
-    borderRadius: 8,
-    padding: 10,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  hamburgerIcon: {
-    width: 20,
-    height: 15,
-    justifyContent: "space-between",
-  },
-  hamburgerLine: {
-    width: "100%",
-    height: 2,
-    backgroundColor: "#0a7ea4",
-    borderRadius: 1,
-  },
-  optionsButtonText: {
-    fontWeight: "bold",
-    color: "#0a7ea4",
-  },
-  zoomButtons: {
-    position: "absolute",
-    right: 16,
-    bottom: 16,
-    backgroundColor: "white",
-    borderRadius: 8,
-    padding: 8,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  instructionContainer: {
-    flex: 1,
-    padding: 12,
-    justifyContent: "center",
-  },
-  noRouteContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  noRouteText: {
-    textAlign: "center",
-    color: "#555",
-  },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  row: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
-  label: { fontWeight: "bold", marginTop: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 4,
-    padding: 8,
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  instruction: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#0d6efd",
-    borderRadius: 6,
-    backgroundColor: "#e7f1ff",
-  },
-  instructionTitle: { fontWeight: "bold", marginBottom: 4 },
-  instructionText: { fontSize: 16 },
-  instructionSub: { fontSize: 12, color: "#555" },
-  error: { color: "crimson", marginTop: 8 },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalContent: {
-    width: width * 0.9,
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
-  },
-  cancelButton: {
-    backgroundColor: "#6c757d",
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    marginRight: 10,
-    alignItems: "center",
-  },
-  calculateButton: {
-    backgroundColor: "#0a7ea4",
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    marginLeft: 10,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  recenterButton: {
-    position: "absolute",
-    top: 40,
-    right: 16,
-    backgroundColor: "white",
-    borderRadius: 8,
-    padding: 10,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  recenterIcon: {
-    width: 20,
-    height: 20,
-    position: "relative",
-  },
-  recenterCircle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#0a7ea4",
-    position: "absolute",
-    top: 2,
-    left: 2,
-  },
-  recenterCross: {
-    width: 10,
-    height: 10,
-    position: "absolute",
-    top: 5,
-    left: 5,
-    borderColor: "#0a7ea4",
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-  },
-  estimatedTime: {
-    fontSize: 14,
-    color: "#555",
-    marginBottom: 8,
-    fontWeight: "bold",
-    textAlign: "left",
-  },
-});
