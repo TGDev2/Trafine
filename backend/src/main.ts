@@ -70,7 +70,7 @@ async function bootstrap() {
 
   /* ----------------------- CSRF ----------------------------- */
   if (process.env.NODE_ENV !== 'test') {
-    // ✅  nouvelle protection : CSRF appliqué sauf si JWT Bearer présent
+    //  nouvelle protection : CSRF appliqué sauf si JWT Bearer présent
     const csrfMiddleware = new CsrfExcludeBearerMiddleware();
     app.use(csrfMiddleware.createMiddleware());
 

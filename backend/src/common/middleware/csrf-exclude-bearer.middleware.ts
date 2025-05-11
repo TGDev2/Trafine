@@ -45,7 +45,6 @@ export class CsrfExcludeBearerMiddleware implements NestMiddleware {
     return CsrfExcludeBearerMiddleware.csrfProtection(req, res, next);
   }
 
-  // Add this method to make the class work with app.use()
   public createMiddleware() {
     return (req: Request, res: Response, next: NextFunction) => {
       return this.use(req, res, next);
