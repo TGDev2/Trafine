@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   registerButton: {
-    backgroundColor: "#4c6ef5", // Couleur différente du bouton de connexion
+    backgroundColor: "#0a7ea4",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
