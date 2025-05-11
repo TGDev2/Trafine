@@ -45,18 +45,22 @@ Fonctionnalités majeures :
 
 ```mermaid
 graph LR
-    subgraph Client
-      FE[Frontend (React SPA)]
-      MOB[Mobile (Expo)]
-    end
-    FE -- REST / WS --> BE
-    MOB -- REST / WS --> BE
-    subgraph Server
-      BE[Backend (NestJS)]
-      CRON[Workers / CRON]
-    end
-    BE -- SQL + GIS --> DB[(PostgreSQL + PostGIS)]
-    CRON -. read/write .-> DB
+  subgraph Client
+    FE["Frontend (React SPA)"]
+    MOB["Mobile (Expo)"]
+  end
+
+  subgraph Server
+    BE["Backend (NestJS)"]
+    CRON[Workers / CRON]
+  end
+
+  DB[(PostgreSQL + PostGIS)]
+
+  FE -- REST / WS --> BE
+  MOB -- REST / WS --> BE
+  BE -- SQL + GIS --> DB
+  CRON -. read/write .-> DB
 ````
 
 * **REST** : data CRUD, auth, navigation.

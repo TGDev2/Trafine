@@ -13,7 +13,7 @@ flowchart LR
 
   subgraph Core
     B --> D[(PostgreSQL<br/>+ PostGIS)]
-    B --> E[OpenRouteService<br/>(external)]
+    B --> E["OpenRouteService<br/>(external)"]
     B <-->|Socket.IO| A
     B <-->|Socket.IO| C
   end
@@ -78,7 +78,7 @@ erDiagram
     int id PK
     varchar type
     text description
-    geometry(point,4326) location
+    "geometry(point,4326) location"
     bool confirmed
     bool denied
     timestamptz created_at
@@ -95,13 +95,8 @@ erDiagram
     int user_id FK
     int incident_id FK
     bool is_confirm
-    PRIMARY KEY (user_id, incident_id)
+    "PRIMARY KEY (user_id, incident_id)"
   }
-
-  users ||--o{ incidents
-  users ||--o{ routes
-  users ||--o{ incident_votes
-  incidents ||--o{ incident_votes
 ```
 
 ### 3.2 Indexation géospatiale
