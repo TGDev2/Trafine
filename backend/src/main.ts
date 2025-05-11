@@ -7,13 +7,13 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { SanitizationPipe } from './common/filters/sanitize.pipe';
 import { ConfigService } from '@nestjs/config';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
-import cookieParser from 'cookie-parser';
+import * as cookieParser from 'cookie-parser';
 import * as csurf from 'csurf';
 import { Request, Response, NextFunction } from 'express';
 import { CsrfExceptionFilter } from './common/filters/csrf-exception.filter';
 import * as fs from 'fs';
 import * as path from 'path';
-import { csrfExcludeBearer } from './common/middleware/csrf-exclude-bearer.middleware';
+import { CsrfExcludeBearerMiddleware } from './common/middleware/csrf-exclude-bearer.middleware';
 
 async function bootstrap() {
   /* ------------------------------------------------------------------
@@ -71,7 +71,8 @@ async function bootstrap() {
   /* ----------------------- CSRF ----------------------------- */
   if (process.env.NODE_ENV !== 'test') {
     // ✅  nouvelle protection : CSRF appliqué sauf si JWT Bearer présent
-    app.use(csrfExcludeBearer);
+    const csrfMiddleware = new CsrfExcludeBearerMiddleware();
+    app.use(csrfMiddleware.createMiddleware());
 
     // (optionnel mais recommandé) — renvoie automatiquement un XSRF-TOKEN
     app.use((req: Request, res: Response, next: NextFunction) => {
