@@ -266,16 +266,34 @@ export default function NavigationScreen() {
       }
     })();
 
+    // Configurer un intervalle pour rafraîchir la position toutes les 3 secondes
+    const positionInterval = setInterval(async () => {
+      try {
+        const loc = await Location.getCurrentPositionAsync({});
+        setCurrentLocation({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      } catch (error) {
+        console.error("Erreur lors du rafraîchissement de la position:", error);
+      }
+    }, 10000);
+
     // Chargement initial des incidents
     fetchIncidents();
     
-    // Configurer un rafraîchissement périodique des incidents (toutes les 30 secondes)
+    // Configurer un rafraîchissement périodique des incidents
     const refreshInterval = setInterval(() => {
       fetchIncidents();
     }, 30000);
     
-    // Nettoyer l'intervalle lors du démontage du composant
-    return () => clearInterval(refreshInterval);
+    // Nettoyer les intervalles lors du démontage du composant
+    return () => {
+      clearInterval(refreshInterval);
+      clearInterval(positionInterval);
+    };
   }, []);
 
   /* ---------------------------- Rendu ---------------------------- */
@@ -298,18 +316,8 @@ export default function NavigationScreen() {
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={currentLocation ?? DEFAULT_REGION}
-        key={incidents.length} // Forcer le rafraîchissement quand les incidents changent
+        key={incidents.length}
       >
-        {/* Marqueur de test */}
-        <Marker
-          coordinate={{
-            latitude: 48.8566,
-            longitude: 2.3522,
-          }}
-          title="Test"
-          pinColor="green"
-        />
-        
         {incidents
           .filter(
             (i) => Number.isFinite(i.latitude) && Number.isFinite(i.longitude)
