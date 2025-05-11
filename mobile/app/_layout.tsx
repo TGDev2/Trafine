@@ -6,7 +6,10 @@ import * as SplashScreen from "expo-splash-screen";
 import { View, ActivityIndicator, Alert } from "react-native";
 import { getAccessToken } from "@/utils/auth";
 import { getSocket } from "@/utils/socket";
-import { RouteShareProvider, RouteShareContext } from "@/context/RouteShareContext";
+import {
+  RouteShareProvider,
+  RouteShareContext,
+} from "@/context/RouteShareContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -41,7 +44,7 @@ export default function RootLayout() {
                   params: { payload: JSON.stringify(routes) },
                 }),
             },
-          ],
+          ]
         );
       });
     })();

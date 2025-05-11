@@ -88,13 +88,13 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.container}>
-      <Image 
-        source={require("../assets/images/traffine-icon-noBG.png")} 
-        style={styles.logo} 
+      <Image
+        source={require("../assets/images/traffine-icon-noBG.png")}
+        style={styles.logo}
         resizeMode="contain"
       />
       <Text style={styles.title}>Créer un compte</Text>
-      
+
       {loading ? (
         <ActivityIndicator size="large" color="#0a7ea4" />
       ) : (
@@ -114,12 +114,15 @@ export default function RegisterScreen() {
               onChangeText={setPassword}
               secureTextEntry
             />
-            <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
+            <TouchableOpacity
+              style={styles.registerButton}
+              onPress={handleRegister}
+            >
               <Text style={styles.registerButtonText}>S'inscrire</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              onPress={() => router.push('/login')}
+
+            <TouchableOpacity
+              onPress={() => router.push("/login")}
               style={styles.loginLink}
             >
               <Text style={styles.loginLinkText}>
@@ -139,13 +142,11 @@ export default function RegisterScreen() {
             onPress={() => handleOAuthLogin("google")}
           >
             <View style={styles.googleButtonContent}>
-              <Image 
-                source={require("../assets/images/google.png")} 
-                style={styles.googleIcon} 
+              <Image
+                source={require("../assets/images/google.png")}
+                style={styles.googleIcon}
               />
-              <Text style={styles.googleButtonText}>
-                Continuer avec Google
-              </Text>
+              <Text style={styles.googleButtonText}>Continuer avec Google</Text>
             </View>
           </TouchableOpacity>
         </>
@@ -201,10 +202,10 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     marginTop: 15,
-    alignItems: 'center',
+    alignItems: "center",
   },
   loginLinkText: {
-    color: '#0a7ea4',
+    color: "#0a7ea4",
     fontSize: 14,
   },
   separator: {
