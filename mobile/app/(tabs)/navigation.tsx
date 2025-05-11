@@ -18,7 +18,9 @@ import * as Notifications from "expo-notifications";
 import { API_URL } from "@/constants/API";
 import { getAccessToken, authenticatedFetch } from "@/utils/auth";
 
-// Définition de l'interface Incident
+/* ------------------------------------------------------------------ */
+/* Types — incidents & région par défaut                               */
+/* ------------------------------------------------------------------ */
 interface Incident {
   id: number;
   type: string;
@@ -41,9 +43,22 @@ const INCIDENT_TYPES = {
   ACCIDENT: "Accident",
   OBSTACLE: "Obstacle",
   POLICE: "Contrôle de police",
-  CLOSED: "Route fermée"
-};
+  CLOSED: "Route fermée",
+} as const;
 
+/* ------------------------------------------------------------------ */
+/* Helper pour garantir l’unicité des incidents                        */
+/* ------------------------------------------------------------------ */
+function upsertIncident(list: Incident[], inc: Incident): Incident[] {
+  const idx = list.findIndex((i) => i.id === inc.id);
+  return idx === -1
+    ? [...list, inc]
+    : list.map((i) => (i.id === inc.id ? inc : i));
+}
+
+/* ------------------------------------------------------------------ */
+/* Composant principal                                                 */
+/* ------------------------------------------------------------------ */
 export default function NavigationScreen() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -51,42 +66,36 @@ export default function NavigationScreen() {
   const [voteLoadingId, setVoteLoadingId] = useState<number | null>(null);
   const [showIncidentModal, setShowIncidentModal] = useState(false);
 
+  /* -------------------- Connexion WebSocket -------------------- */
   useEffect(() => {
-    // Connexion WebSocket sécurisée
     const connectSocket = async () => {
       const token = await getAccessToken();
-      const socket = io(API_URL, {
+      const socket: Socket = io(API_URL, {
         transports: ["websocket"],
         auth: token ? { token: `Bearer ${token}` } : undefined,
       });
 
       socket.on("incidentAlert", (incident: Incident) => {
-        // Haptique + notification
+        /* Vibration + notif locale */
         Vibration.vibrate([500, 200, 500]);
         Notifications.scheduleNotificationAsync({
           content: {
             title: "Nouvel incident signalé",
-            body: `${incident.type} - ${
+            body: `${incident.type} — ${
               incident.description || "Pas de description"
             }`,
             data: { incident },
           },
           trigger: null,
         });
-        setIncidents((prev) => {
-          const idx = prev.findIndex((i) => i.id === incident.id);
-          if (idx === -1) return [...prev, incident];
-          const copy = [...prev];
-          copy[idx] = incident;
-          return copy;
-        });
+
+        setIncidents((prev) => upsertIncident(prev, incident));
       });
     };
 
-    connectSocket();
-
-    // Récupération de la position
+    /* Position courante */
     (async () => {
+      connectSocket();
       try {
         const loc = await Location.getCurrentPositionAsync({});
         setCurrentLocation({
@@ -103,7 +112,7 @@ export default function NavigationScreen() {
     })();
   }, []);
 
-  // Helpers pour confirmer / infirmer
+  /* --------------------------- Votes --------------------------- */
   const confirmIncident = async (id: number) => {
     setVoteLoadingId(id);
     try {
@@ -113,7 +122,7 @@ export default function NavigationScreen() {
       );
       if (!res.ok) throw new Error("Échec de la confirmation");
       const updated = await res.json();
-      setIncidents((prev) => prev.map((i) => (i.id === id ? updated : i)));
+      setIncidents((prev) => upsertIncident(prev, updated));
     } catch (e: any) {
       Alert.alert("Erreur", e.message);
     } finally {
@@ -129,7 +138,7 @@ export default function NavigationScreen() {
       });
       if (!res.ok) throw new Error("Échec de l'infirmation");
       const updated = await res.json();
-      setIncidents((prev) => prev.map((i) => (i.id === id ? updated : i)));
+      setIncidents((prev) => upsertIncident(prev, updated));
     } catch (e: any) {
       Alert.alert("Erreur", e.message);
     } finally {
@@ -137,16 +146,14 @@ export default function NavigationScreen() {
     }
   };
 
-  // Fonction pour signaler un incident
+  /* ------------------- Signalement mobile --------------------- */
   const reportIncident = async (type: string) => {
     if (!currentLocation) return;
-    
+
     try {
       const response = await authenticatedFetch(`${API_URL}/incidents`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type,
           latitude: currentLocation.latitude,
@@ -156,8 +163,10 @@ export default function NavigationScreen() {
 
       if (!response.ok) throw new Error("Échec du signalement");
 
-      const newIncident = await response.json();
-      setIncidents(prev => [...prev, newIncident]);
+      const newIncident: Incident = await response.json();
+      /* 🔑 Garantir l’unicité immédiatement, avant de recevoir le WS */
+      setIncidents((prev) => upsertIncident(prev, newIncident));
+
       setShowIncidentModal(false);
       Alert.alert("Succès", "Incident signalé avec succès");
     } catch (error: any) {
@@ -165,6 +174,7 @@ export default function NavigationScreen() {
     }
   };
 
+  /* ------------------------- Rendu ---------------------------- */
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -194,14 +204,16 @@ export default function NavigationScreen() {
                   {incident.description || "Sans description"}
                 </Text>
                 <Text style={styles.status}>
-                  Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf:
+                  Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf :
                   {incident.denied ? "Oui" : "Non"}
                 </Text>
                 <View style={styles.buttonContainer}>
                   <Button
                     title="Confirmer"
                     onPress={() => confirmIncident(incident.id)}
-                    disabled={voteLoadingId === incident.id || incident.confirmed}
+                    disabled={
+                      voteLoadingId === incident.id || incident.confirmed
+                    }
                   />
                   <Button
                     title="Infirmer"
@@ -213,19 +225,17 @@ export default function NavigationScreen() {
             </Callout>
           </Marker>
         ))}
+
         {currentLocation && (
           <Marker
-            coordinate={{
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-            }}
+            coordinate={currentLocation}
             title="Ma position"
             pinColor="blue"
           />
         )}
       </MapView>
 
-      {/* Bouton flottant pour signaler un incident */}
+      {/* --------- Bouton flottant « Signaler » --------- */}
       <TouchableOpacity
         style={styles.reportButton}
         onPress={() => setShowIncidentModal(true)}
@@ -233,10 +243,10 @@ export default function NavigationScreen() {
         <Text style={styles.reportButtonText}>Signaler un incident</Text>
       </TouchableOpacity>
 
-      {/* Modal pour choisir le type d'incident */}
+      {/* --------- Modal type d’incident --------- */}
       <Modal
         visible={showIncidentModal}
-        transparent={true}
+        transparent
         animationType="slide"
         onRequestClose={() => setShowIncidentModal(false)}
       >
@@ -244,9 +254,9 @@ export default function NavigationScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Signaler un incident</Text>
             <View style={styles.buttonGrid}>
-              {Object.entries(INCIDENT_TYPES).map(([key, label]) => (
+              {Object.values(INCIDENT_TYPES).map((label) => (
                 <TouchableOpacity
-                  key={key}
+                  key={label}
                   style={styles.incidentButton}
                   onPress={() => reportIncident(label)}
                 >
@@ -267,13 +277,12 @@ export default function NavigationScreen() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Styles                                                             */
+/* ------------------------------------------------------------------ */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: { 
-    flex: 1 
-  },
+  container: { flex: 1 },
+  map: { flex: 1 },
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
@@ -289,68 +298,55 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   reportButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 20,
     right: 20,
-    backgroundColor: '#0a7ea4',
+    backgroundColor: "#0a7ea4",
     padding: 15,
     borderRadius: 25,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
-  reportButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+  reportButtonText: { color: "white", fontWeight: "bold" },
   modalContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     padding: 20,
     borderRadius: 12,
-    width: '80%',
-    alignItems: 'center',
+    width: "80%",
+    alignItems: "center",
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
+  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 20 },
   buttonGrid: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
   incidentButton: {
-    width: '48%',
-    backgroundColor: '#0a7ea4',
+    width: "48%",
+    backgroundColor: "#0a7ea4",
     padding: 12,
     borderRadius: 8,
     marginBottom: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
-  incidentButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+  incidentButtonText: { color: "white", fontWeight: "bold" },
   cancelButton: {
     marginTop: 10,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#ccc',
-    width: '100%',
-    alignItems: 'center',
+    backgroundColor: "#ccc",
+    width: "100%",
+    alignItems: "center",
   },
-  cancelButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+  cancelButtonText: { color: "white", fontWeight: "bold" },
 });
