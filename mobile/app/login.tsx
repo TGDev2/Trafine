@@ -1,7 +1,20 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Alert, TextInput, TouchableOpacity, Image, } from "react-native";
-import { makeRedirectUri, useAuthRequest, ResponseType } from "expo-auth-session";
-import * as WebBrowser from 'expo-web-browser';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  TextInput,
+  TouchableOpacity,
+  Image,
+} from "react-native";
+import {
+  makeRedirectUri,
+  useAuthRequest,
+  ResponseType,
+} from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
 import { useRouter } from "expo-router";
 import { API_URL } from "@/constants/API";
 import { saveTokens } from "@/utils/auth";
@@ -20,47 +33,47 @@ export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
-  
+
   // Configuration de la requête d'authentification
   const redirectUri = makeRedirectUri({ native: "myapp://redirect" });
   const [request, response, promptAsync] = useAuthRequest(
     {
-      clientId: 'your-client-id', // Remplacez par votre ID client
-      scopes: ['profile', 'email'],
+      clientId: "your-client-id", // Remplacez par votre ID client
+      scopes: ["profile", "email"],
       redirectUri,
       responseType: ResponseType.Code,
     },
     discovery
   );
-  
+
   // Traitement de la réponse d'authentification
   React.useEffect(() => {
-    if (response?.type === 'success' && response.params?.code) {
+    if (response?.type === "success" && response.params?.code) {
       handleAuthCode(response.params.code);
     }
   }, [response]);
-  
+
   const handleAuthCode = async (code: string) => {
     setLoading(true);
     try {
       const tokenResponse = await fetch(`${API_URL}/auth/google/callback`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           code: code,
-          redirect_uri: redirectUri
-        })
+          redirect_uri: redirectUri,
+        }),
       });
-      
+
       if (!tokenResponse.ok) {
         throw new Error("Échec de l'authentification");
       }
-      
+
       const { access_token, refresh_token } = await tokenResponse.json();
       await saveTokens(access_token, refresh_token);
-      router.replace('/(tabs)');
+      router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Erreur d'authentification", err.message);
     } finally {
@@ -75,16 +88,13 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `${API_URL}/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ username, password }),
-        }
-      );
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
       if (!res.ok) {
         const data = await res.json();
@@ -153,13 +163,11 @@ export default function LoginScreen() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          onPress={() => router.push('/register')}
+        <TouchableOpacity
+          onPress={() => router.push("/register")}
           style={styles.registerLink}
         >
-          <Text style={styles.registerLinkText}>
-            Nouveau ? Créer un compte
-          </Text>
+          <Text style={styles.registerLinkText}>Nouveau ? Créer un compte</Text>
         </TouchableOpacity>
 
         <View style={styles.divider}>
@@ -262,10 +270,10 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     marginTop: 15,
-    alignItems: 'center',
+    alignItems: "center",
   },
   registerLinkText: {
-    color: '#4c6ef5',
+    color: "#4c6ef5",
     fontSize: 16,
   },
 });

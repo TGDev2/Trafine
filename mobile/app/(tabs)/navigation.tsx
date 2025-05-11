@@ -10,7 +10,12 @@ import {
   TouchableOpacity,
   Modal,
 } from "react-native";
-import MapView, { Marker, Callout, Region, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, {
+  Marker,
+  Callout,
+  Region,
+  PROVIDER_GOOGLE,
+} from "react-native-maps";
 import { io, Socket } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
@@ -92,15 +97,16 @@ export default function NavigationScreen() {
         Notifications.scheduleNotificationAsync({
           content: {
             title: "Nouvel incident signalé",
-            body: `${incident.type} — ${incident.description || "Pas de description"
-              }`,
+            body: `${incident.type} — ${
+              incident.description || "Pas de description"
+            }`,
             data: { incident },
           },
           trigger: null,
         });
 
         setIncidents((prev) => upsertIncident(prev, incident));
-        
+
         // Forcer un rafraîchissement des incidents depuis le serveur
         fetchIncidents();
       });
@@ -128,7 +134,8 @@ export default function NavigationScreen() {
     const fetchIncidents = async () => {
       try {
         const response = await authenticatedFetch(`${API_URL}/incidents`);
-        if (!response.ok) throw new Error("Échec de récupération des incidents");
+        if (!response.ok)
+          throw new Error("Échec de récupération des incidents");
         const data = await response.json();
         console.log("Incidents récupérés:", data);
         setIncidents(data.map(normalizeIncident));
@@ -136,7 +143,7 @@ export default function NavigationScreen() {
         console.error("Erreur:", error);
       }
     };
-    
+
     fetchIncidents();
   }, []);
 
@@ -234,15 +241,16 @@ export default function NavigationScreen() {
         Notifications.scheduleNotificationAsync({
           content: {
             title: "Nouvel incident signalé",
-            body: `${incident.type} — ${incident.description || "Pas de description"
-              }`,
+            body: `${incident.type} — ${
+              incident.description || "Pas de description"
+            }`,
             data: { incident },
           },
           trigger: null,
         });
 
         setIncidents((prev) => upsertIncident(prev, incident));
-        
+
         // Forcer un rafraîchissement des incidents depuis le serveur
         fetchIncidents();
       });
@@ -283,12 +291,12 @@ export default function NavigationScreen() {
 
     // Chargement initial des incidents
     fetchIncidents();
-    
+
     // Configurer un rafraîchissement périodique des incidents
     const refreshInterval = setInterval(() => {
       fetchIncidents();
     }, 30000);
-    
+
     // Nettoyer les intervalles lors du démontage du composant
     return () => {
       clearInterval(refreshInterval);
@@ -306,9 +314,12 @@ export default function NavigationScreen() {
   }
 
   // Débogage des incidents filtrés
-  console.log("Incidents filtrés:", incidents.filter(
-    (i) => Number.isFinite(i.latitude) && Number.isFinite(i.longitude)
-  ));
+  console.log(
+    "Incidents filtrés:",
+    incidents.filter(
+      (i) => Number.isFinite(i.latitude) && Number.isFinite(i.longitude)
+    )
+  );
 
   return (
     <View style={styles.container}>
@@ -336,7 +347,9 @@ export default function NavigationScreen() {
                 pinColor="red"
               >
                 <View style={styles.customMarker}>
-                  <Text style={styles.markerText}>{incident.type.charAt(0)}</Text>
+                  <Text style={styles.markerText}>
+                    {incident.type.charAt(0)}
+                  </Text>
                 </View>
                 <Callout>
                   <View style={styles.callout}>
@@ -359,7 +372,9 @@ export default function NavigationScreen() {
                       <Button
                         title="Infirmer"
                         onPress={() => denyIncident(incident.id)}
-                        disabled={voteLoadingId === incident.id || incident.denied}
+                        disabled={
+                          voteLoadingId === incident.id || incident.denied
+                        }
                       />
                     </View>
                   </View>
@@ -369,10 +384,7 @@ export default function NavigationScreen() {
           })}
 
         {currentLocation && (
-          <Marker
-            coordinate={currentLocation}
-            title="Ma position"
-          >
+          <Marker coordinate={currentLocation} title="Ma position">
             <View style={styles.carMarker}>
               <Text style={styles.carEmoji}>🚗</Text>
             </View>
@@ -420,4 +432,4 @@ export default function NavigationScreen() {
       </Modal>
     </View>
   );
-};
+}

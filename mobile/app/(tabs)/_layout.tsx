@@ -22,7 +22,7 @@ export default function TabLayout() {
         setLoading(false);
       }
     }
-    
+
     checkAuth();
   }, []);
 
