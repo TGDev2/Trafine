@@ -79,16 +79,6 @@ export default function TabLayout() {
         />
 
         <Tabs.Screen
-          name="report-incident"
-          options={{
-            title: "Report",
-            tabBarIcon: ({ color }) => (
-              <MaterialIcons name="warning" size={28} color={color} />
-            ),
-          }}
-        />
-
-        <Tabs.Screen
           name="scan-qr"
           options={{
             title: "Scanner",

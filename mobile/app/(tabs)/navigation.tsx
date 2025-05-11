@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   Modal,
 } from "react-native";
-import MapView, { Marker, Callout, Region } from "react-native-maps";
+import MapView, { Marker, Callout, Region, PROVIDER_GOOGLE } from "react-native-maps";
 import { io, Socket } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
@@ -99,6 +99,9 @@ export default function NavigationScreen() {
         });
 
         setIncidents((prev) => upsertIncident(prev, incident));
+        
+        // Forcer un rafraîchissement des incidents depuis le serveur
+        fetchIncidents();
       });
     };
 
@@ -119,6 +122,21 @@ export default function NavigationScreen() {
         setLoading(false);
       }
     })();
+
+    // Ajout du chargement initial des incidents
+    const fetchIncidents = async () => {
+      try {
+        const response = await authenticatedFetch(`${API_URL}/incidents`);
+        if (!response.ok) throw new Error("Échec de récupération des incidents");
+        const data = await response.json();
+        console.log("Incidents récupérés:", data);
+        setIncidents(data.map(normalizeIncident));
+      } catch (error) {
+        console.error("Erreur:", error);
+      }
+    };
+    
+    fetchIncidents();
   }, []);
 
   /* --------------------------- Votes --------------------------- */
@@ -173,8 +191,12 @@ export default function NavigationScreen() {
       if (!response.ok) throw new Error("Échec du signalement");
 
       const newIncident: Incident = await response.json();
+      console.log("Nouvel incident créé:", newIncident);
       /* 🔑 Garantir l'unicité immédiatement, avant de recevoir le WS */
       setIncidents((prev) => upsertIncident(prev, newIncident));
+
+      // Forcer un rafraîchissement des incidents depuis le serveur
+      fetchIncidents();
 
       setShowIncidentModal(false);
       Alert.alert("Succès", "Incident signalé avec succès");
@@ -183,7 +205,79 @@ export default function NavigationScreen() {
     }
   };
 
-  /* ------------------------- Rendu ---------------------------- */
+  // Déplacer fetchIncidents en dehors du useEffect pour pouvoir l'appeler ailleurs
+  const fetchIncidents = async () => {
+    try {
+      const response = await authenticatedFetch(`${API_URL}/incidents`);
+      if (!response.ok) throw new Error("Échec de récupération des incidents");
+      const data = await response.json();
+      console.log("Incidents récupérés:", data);
+      setIncidents(data.map(normalizeIncident));
+    } catch (error) {
+      console.error("Erreur:", error);
+    }
+  };
+
+  /* -------------------- Connexion WebSocket -------------------- */
+  useEffect(() => {
+    const connectSocket = async () => {
+      const token = await getAccessToken();
+      const socket: Socket = io(API_URL, {
+        transports: ["websocket"],
+        auth: token ? { token: `Bearer ${token}` } : undefined,
+      });
+
+      socket.on("incidentAlert", (incident: Incident) => {
+        /* Vibration + notif locale */
+        Vibration.vibrate([500, 200, 500]);
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: "Nouvel incident signalé",
+            body: `${incident.type} — ${incident.description || "Pas de description"
+              }`,
+            data: { incident },
+          },
+          trigger: null,
+        });
+
+        setIncidents((prev) => upsertIncident(prev, incident));
+        
+        // Forcer un rafraîchissement des incidents depuis le serveur
+        fetchIncidents();
+      });
+    };
+
+    /* Position courante */
+    (async () => {
+      connectSocket();
+      try {
+        const loc = await Location.getCurrentPositionAsync({});
+        setCurrentLocation({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      } catch {
+        Alert.alert("Erreur", "Impossible de récupérer la position actuelle.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    // Chargement initial des incidents
+    fetchIncidents();
+    
+    // Configurer un rafraîchissement périodique des incidents (toutes les 30 secondes)
+    const refreshInterval = setInterval(() => {
+      fetchIncidents();
+    }, 30000);
+    
+    // Nettoyer l'intervalle lors du démontage du composant
+    return () => clearInterval(refreshInterval);
+  }, []);
+
+  /* ---------------------------- Rendu ---------------------------- */
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -192,52 +286,78 @@ export default function NavigationScreen() {
     );
   }
 
+  // Débogage des incidents filtrés
+  console.log("Incidents filtrés:", incidents.filter(
+    (i) => Number.isFinite(i.latitude) && Number.isFinite(i.longitude)
+  ));
+
   return (
     <View style={styles.container}>
       <MapView
         style={styles.map}
+        provider={PROVIDER_GOOGLE}
         initialRegion={currentLocation ?? DEFAULT_REGION}
+        key={incidents.length} // Forcer le rafraîchissement quand les incidents changent
       >
+        {/* Marqueur de test */}
+        <Marker
+          coordinate={{
+            latitude: 48.8566,
+            longitude: 2.3522,
+          }}
+          title="Test"
+          pinColor="green"
+        />
+        
         {incidents
           .filter(
             (i) => Number.isFinite(i.latitude) && Number.isFinite(i.longitude)
           )
-          .map((incident) => (
-            <Marker
-              key={incident.id}
-              coordinate={{
-                latitude: incident.latitude as number,
-                longitude: incident.longitude as number,
-              }}
-            >
-              <Callout>
-                <View style={styles.callout}>
-                  <Text style={styles.title}>{incident.type}</Text>
-                  <Text style={styles.description}>
-                    {incident.description || "Sans description"}
-                  </Text>
-                  <Text style={styles.status}>
-                    Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf :
-                    {incident.denied ? "Oui" : "Non"}
-                  </Text>
-                  <View style={styles.buttonContainer}>
-                    <Button
-                      title="Confirmer"
-                      onPress={() => confirmIncident(incident.id)}
-                      disabled={
-                        voteLoadingId === incident.id || incident.confirmed
-                      }
-                    />
-                    <Button
-                      title="Infirmer"
-                      onPress={() => denyIncident(incident.id)}
-                      disabled={voteLoadingId === incident.id || incident.denied}
-                    />
-                  </View>
+          .map((incident) => {
+            const lat = Number(incident.latitude);
+            const lng = Number(incident.longitude);
+            console.log(`Incident ${incident.id}: lat=${lat}, lng=${lng}`);
+            return (
+              <Marker
+                key={incident.id}
+                coordinate={{
+                  latitude: lat,
+                  longitude: lng,
+                }}
+                pinColor="red"
+              >
+                <View style={styles.customMarker}>
+                  <Text style={styles.markerText}>{incident.type.charAt(0)}</Text>
                 </View>
-              </Callout>
-            </Marker>
-          ))}
+                <Callout>
+                  <View style={styles.callout}>
+                    <Text style={styles.title}>{incident.type}</Text>
+                    <Text style={styles.description}>
+                      {incident.description || "Sans description"}
+                    </Text>
+                    <Text style={styles.status}>
+                      Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf :
+                      {incident.denied ? "Oui" : "Non"}
+                    </Text>
+                    <View style={styles.buttonContainer}>
+                      <Button
+                        title="Confirmer"
+                        onPress={() => confirmIncident(incident.id)}
+                        disabled={
+                          voteLoadingId === incident.id || incident.confirmed
+                        }
+                      />
+                      <Button
+                        title="Infirmer"
+                        onPress={() => denyIncident(incident.id)}
+                        disabled={voteLoadingId === incident.id || incident.denied}
+                      />
+                    </View>
+                  </View>
+                </Callout>
+              </Marker>
+            );
+          })}
 
         {currentLocation && (
           <Marker
@@ -256,7 +376,7 @@ export default function NavigationScreen() {
         <Text style={styles.reportButtonText}>Signaler un incident</Text>
       </TouchableOpacity>
 
-      {/* --------- Modal type d’incident --------- */}
+      {/* --------- Modal type d'incident --------- */}
       <Modal
         visible={showIncidentModal}
         transparent
@@ -362,4 +482,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: { color: "white", fontWeight: "bold" },
+  customMarker: {
+    backgroundColor: 'red',
+    padding: 10,
+    borderRadius: 25, // Augmenté de 20 à 25
+    borderWidth: 3,   // Augmenté de 2 à 3
+    borderColor: 'white',
+    width: 50,        // Augmenté de 40 à 50
+    height: 50,       // Augmenté de 40 à 50
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  markerText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,     // Augmenté de 16 à 18
+  },
 });
