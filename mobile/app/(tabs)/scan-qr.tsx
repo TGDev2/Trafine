@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, Button, StyleSheet, Alert, FlatList } from "react-native";
 import { Camera, CameraView, BarcodeScanningResult } from "expo-camera";
 import { API_URL } from "@/constants/API";
-
+import { useRouter } from "expo-router";
 interface RouteDTO {
   source: string;
   destination: string;
@@ -17,6 +17,7 @@ export default function ScanQRScreen() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [routes, setRoutes] = useState<RouteDTO[] | null>(null);
+  const router = useRouter();
 
   /* ---------- Permissions caméra ---------- */
   useEffect(() => {
@@ -25,7 +26,6 @@ export default function ScanQRScreen() {
     );
   }, []);
 
-  /* ---------- Callback scan QR ---------- */
   /** ----------------------------------------------------------------------------
    *  Helpers
    *  -------------------------------------------------------------------------- */
@@ -189,6 +189,17 @@ export default function ScanQRScreen() {
                     ))}
                   </View>
                 )}
+              />
+              {/* ----------- Bouton "Démarrer la navigation" ----------- */}
+              <Button
+                title="Démarrer la navigation"
+                onPress={() =>
+                  router.replace({
+                    pathname: "/(tabs)/calculate-route",
+                    params: { sharedRoutes: JSON.stringify(routes) },
+                  })
+                }
+                accessibilityLabel="Ouvrir l'itinéraire dans la navigation"
               />
             </>
           ) : (
