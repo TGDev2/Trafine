@@ -19,6 +19,7 @@ import "../style/stat.css";
 
 export default function Stats() {
   const { token, refreshToken, refreshSession, logout, isAdmin } = useAuth();
+  const ctx = { token, refreshToken, refreshSession, logout };
   const [globalStats, setGlobalStats] = useState(null);
   const [hourlyStats, setHourlyStats] = useState([]);
   const [prediction, setPrediction] = useState(null);
@@ -28,17 +29,12 @@ export default function Stats() {
 
   const fetchStats = async () => {
     try {
-      const fetchJson = (url) =>
-        apiFetch(
-          url,
-          {},
-          { token, refreshToken, refreshSession, logout }
-        ).then((r) => r.json());
+      const fetchJson = (url) => apiFetch(url, {}, ctx).then((r) => r.json());
 
       const [gs, hs, pr] = await Promise.all([
-        fetchJson("http://localhost:3000/statistics"),
-        fetchJson("http://localhost:3000/statistics/hourly"),
-        fetchJson("http://localhost:3000/statistics/prediction"),
+        fetchJson("/statistics"),
+        fetchJson("/statistics/hourly"),
+        fetchJson("/statistics/prediction"),
       ]);
       setGlobalStats(gs);
       setHourlyStats(hs);
@@ -197,14 +193,14 @@ export default function Stats() {
                   if (window.confirm('Êtes-vous sûr de vouloir supprimer tous les incidents ? Cette action est irréversible.')) {
                     try {
                       await apiFetch(
-                        "http://localhost:3000/incidents",
+                        "/incidents",
                         {
                           method: "DELETE",
                           headers: {
                             "Content-Type": "application/json"
                           }
                         },
-                        { token, refreshToken, refreshSession, logout }
+                        ctx
                       );
                       // Rafraîchir les statistiques après la suppression
                       fetchStats();

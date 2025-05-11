@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import MapView from "./MapView";
 import { io } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
-import { apiFetch } from "../utils/api";
+import { API_BASE, apiFetch } from "../utils/api";
 import "../style/Dashboard.css";
 import "../style/Users.css";
 
@@ -41,7 +41,7 @@ export default function Dashboard() {
     });
 
   useEffect(() => {
-    const s = io("http://localhost:3000", {
+    const s = io(API_BASE, {
       transports: ["websocket"],
       auth: { token: token ? `Bearer ${token}` : "" },
     });
@@ -59,7 +59,7 @@ export default function Dashboard() {
     (async () => {
       try {
         const res = await apiFetch(
-          "http://localhost:3000/incidents",
+          "/incidents",
           {},
           { token, refreshToken, refreshSession, logout }
         );
@@ -78,7 +78,7 @@ export default function Dashboard() {
   const handleCreateIncident = async () => {
     try {
       const res = await apiFetch(
-        "http://localhost:3000/incidents",
+        "/incidents",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

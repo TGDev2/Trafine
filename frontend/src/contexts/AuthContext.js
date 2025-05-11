@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { API_BASE } from "../utils/api";
 
 /* ----------------  Helpers ---------------- */
 // Stockage synchrone : lecture/écriture directes pour éviter le flash de déconnexion.
@@ -62,7 +63,7 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     if (token) {
-      await fetch("http://localhost:3000/auth/logout", {
+      await fetch(`${API_BASE}/auth/logout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {});
@@ -73,7 +74,7 @@ export function AuthProvider({ children }) {
   };
 
   const refreshSession = async () => {
-    const res = await fetch("http://localhost:3000/auth/refresh", {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),

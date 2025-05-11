@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { API_BASE } from "../utils/api";
 import "../style/login.css";
 
 export default function Login() {
@@ -16,12 +17,12 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:3000/auth/login", {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (!res.ok) throw new Error("Nom d’utilisateur ou mot de passe invalide");
+      if (!res.ok) throw new Error("Nom d'utilisateur ou mot de passe invalide");
       const { access_token, refresh_token } = await res.json();
       login(access_token, refresh_token);
       navigate("/", { replace: true });
@@ -33,11 +34,10 @@ export default function Login() {
   };
 
   const handleOAuth = (provider) => {
-    const redirectUri = window.location.origin; // http://localhost:3001/ en dev
-     window.location.href = `http://localhost:3000/auth/${provider}?redirect_uri=${encodeURIComponent(
-       redirectUri
-     )}`;
-
+    const redirectUri = window.location.origin;
+    window.location.href = `${API_BASE}/auth/${provider}?redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}`;
   };
 
   return (
@@ -50,7 +50,7 @@ export default function Login() {
         {error && <p className="error-msg">{error}</p>}
 
         <form className="login-form" onSubmit={handleLogin}>
-          <label htmlFor="username">Nom d’utilisateur</label>
+          <label htmlFor="username">Nom d'utilisateur</label>
           <input
             id="username"
             type="text"

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { API_BASE } from "../utils/api";
 import "../style/login.css";
 
 export default function Register() {
@@ -10,11 +11,10 @@ export default function Register() {
   const navigate = useNavigate();
 
   const handleOAuth = (provider) => {
-    const redirectUri = window.location.origin; // http://localhost:3001/ en dev
-     window.location.href = `http://localhost:3000/auth/${provider}?redirect_uri=${encodeURIComponent(
-       redirectUri
-     )}`;
-
+    const redirectUri = window.location.origin;
+    window.location.href = `${API_BASE}/auth/${provider}?redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}`;
   };
 
   const handleRegister = async (e) => {
@@ -23,14 +23,14 @@ export default function Register() {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:3000/auth/register", {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
         const msg = await res.text();
-        throw new Error(msg || "Échec de l’inscription");
+        throw new Error(msg || "Échec de l'inscription");
       }
       alert("Inscription réussie ! Veuillez vous connecter.");
       navigate("/login", { replace: true });

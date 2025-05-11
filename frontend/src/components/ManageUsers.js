@@ -8,6 +8,7 @@ const ROLES = ["user", "moderator", "admin"];
 
 export default function ManageUsers() {
   const { token, refreshToken, refreshSession, logout } = useAuth();
+  const ctx = { token, refreshToken, refreshSession, logout };
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,11 +19,7 @@ export default function ManageUsers() {
     let mounted = true;
     (async () => {
       try {
-        const res = await apiFetch(
-          "http://localhost:3000/users",
-          {},
-          { token, refreshToken, refreshSession, logout }
-        );
+        const res = await apiFetch("/users", {}, ctx);
         if (!res.ok) throw new Error("Impossible de récupérer la liste.");
         const data = await res.json();
         // Tri des utilisateurs par ID croissant
@@ -41,13 +38,13 @@ export default function ManageUsers() {
     setUpdatingId(id);
     try {
       const res = await apiFetch(
-        `http://localhost:3000/users/${id}/role`,
+        `/users/${id}/role`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ role: newRole }),
         },
-        { token, refreshToken, refreshSession, logout }
+        ctx
       );
       if (!res.ok) throw new Error("Échec de la mise à jour.");
       setUsers((prev) =>

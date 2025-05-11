@@ -116,19 +116,18 @@ const MapView = ({
 
   const defaultPosition = [46.603354, 1.8883335];
 
+  const ctx = { token, refreshToken, refreshSession, logout };
+
   const voteIncident = async (id, action) => {
     setVoteLoadingId(id);
     try {
       const res = await apiFetch(
-        `http://localhost:3000/incidents/${id}/${action}`,
+        `/incidents/${id}/${action}`,
         { 
-          method: "PATCH",
-          headers: { 
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+          method: "PATCH", 
+          headers: { "Content-Type": "application/json" }
         },
-        { token, refreshToken, refreshSession, logout }
+        ctx
       );
       if (res.status === 401) {
         logout();
@@ -150,13 +149,13 @@ const MapView = ({
   const handleUpdateIncident = async (id) => {
     try {
       const res = await apiFetch(
-        `http://localhost:3000/incidents/${id}`,
+        `/incidents/${id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(editValues),
         },
-        { token, refreshToken, refreshSession, logout }
+        ctx
       );
       if (res.status === 401) {
         logout();
@@ -179,9 +178,9 @@ const MapView = ({
     if (!window.confirm("Supprimer définitivement cet incident ?")) return;
     try {
       const res = await apiFetch(
-        `http://localhost:3000/incidents/${id}`,
+        `/incidents/${id}`,
         { method: "DELETE" },
-        { token, refreshToken, refreshSession, logout }
+        ctx
       );
       if (res.status === 401) {
         logout();
@@ -216,7 +215,7 @@ const MapView = ({
       localStorage.setItem('newIncidentPosition', JSON.stringify([newIncidentPosition.lat, newIncidentPosition.lng]));
       
       const res = await apiFetch(
-        "http://localhost:3000/incidents",
+        "/incidents",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -226,7 +225,7 @@ const MapView = ({
             longitude: newIncidentPosition.lng,
           }),
         },
-        { token, refreshToken, refreshSession, logout }
+        ctx
       );
       
       if (res.status === 401) {
