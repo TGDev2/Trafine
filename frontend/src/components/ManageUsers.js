@@ -79,7 +79,7 @@ export default function ManageUsers() {
       </div>
     </div>
   );
-  
+
   if (error) return (
     <div className="users-layout">
       <div className="users-header">
@@ -120,10 +120,10 @@ export default function ManageUsers() {
           </Link>
         </nav>
       </div>
-      
+
       <div className="users-table-container">
         <h2 className="users-table-title">Gestion des utilisateurs</h2>
-        
+
         <table className="users-table">
           <thead>
             <tr>

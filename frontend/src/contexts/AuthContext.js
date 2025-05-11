@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
       await fetch(`${API_BASE}/auth/logout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
+      }).catch(() => { });
     }
     setToken(null);
     setRefreshToken(null);

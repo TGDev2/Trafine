@@ -122,7 +122,8 @@
   border-radius: 4px;
 }
 
-.menu-btn, .menu button {
+.menu-btn,
+.menu button {
   display: block;
   width: 100%;
   text-align: left;
@@ -137,9 +138,12 @@
   text-decoration: none;
   transition: background 0.2s;
 }
-.menu-btn:hover, .menu button:hover {
+
+.menu-btn:hover,
+.menu button:hover {
   background: #34495e;
 }
+
 .create-btn {
   background-color: #27ae60;
   color: #fff;
@@ -154,7 +158,7 @@
   position: relative;
 }
 
-.dashboard-main > * {
+.dashboard-main>* {
   height: 100%;
 }
 

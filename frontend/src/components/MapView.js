@@ -15,8 +15,8 @@ L.Icon.Default.mergeOptions({
 // Définition des icônes personnalisées pour chaque type d'incident
 const getCustomIcon = (type) => {
   let iconUrl;
-  
-  switch(type) {
+
+  switch (type) {
     case 'accident':
       iconUrl = '/accident.png';
       break;
@@ -35,7 +35,7 @@ const getCustomIcon = (type) => {
     default:
       iconUrl = require("leaflet/dist/images/marker-icon.png");
   }
-  
+
   return L.icon({
     iconUrl: iconUrl,
     iconSize: [32, 32],
@@ -68,7 +68,7 @@ const MapClickHandler = ({ onMapClick, isCreating }) => {
 // Composant pour sauvegarder la position et le zoom de la carte
 const MapStateHandler = () => {
   const map = useMap();
-  
+
   // Sauvegarde la position et le zoom actuels dans localStorage
   useEffect(() => {
     map.on('moveend', () => {
@@ -78,18 +78,18 @@ const MapStateHandler = () => {
       localStorage.setItem('mapZoom', zoom);
     });
   }, [map]);
-  
+
   // Restaure la position et le zoom sauvegardés
   useEffect(() => {
     const savedCenter = localStorage.getItem('mapCenter');
     const savedZoom = localStorage.getItem('mapZoom');
-    
+
     if (savedCenter && savedZoom) {
       const center = JSON.parse(savedCenter);
       map.setView(center, parseInt(savedZoom));
     }
   }, [map]);
-  
+
   return null;
 };
 
@@ -123,8 +123,8 @@ const MapView = ({
     try {
       const res = await apiFetch(
         `/incidents/${id}/${action}`,
-        { 
-          method: "PATCH", 
+        {
+          method: "PATCH",
           headers: { "Content-Type": "application/json" }
         },
         ctx
@@ -207,13 +207,13 @@ const MapView = ({
 
   const handleCreateIncident = async () => {
     if (!newIncidentPosition) return;
-    
+
     try {
       setError(null);
-      
+
       // Sauvegarder la position de l'incident créé pour y zoomer après le rafraîchissement
       localStorage.setItem('newIncidentPosition', JSON.stringify([newIncidentPosition.lat, newIncidentPosition.lng]));
-      
+
       const res = await apiFetch(
         "/incidents",
         {
@@ -227,18 +227,18 @@ const MapView = ({
         },
         ctx
       );
-      
+
       if (res.status === 401) {
         logout();
         return;
       }
-      
+
       const created = await res.json();
       setIncidents((prev) => [...prev, created]);
       setNewIncidentPosition(null);
       setNewIncidentData({ type: INCIDENT_TYPES[0], description: "" });
       setIsCreating(false);
-      
+
       // Rafraîchissement de la page après création réussie
       window.location.reload();
     } catch (e) {
@@ -271,10 +271,10 @@ const MapView = ({
         />
         <MapClickHandler onMapClick={handleMapClick} isCreating={isCreating} />
         <MapStateHandler />
-        
+
         {/* Marqueur pour le nouvel incident */}
         {newIncidentPosition && isCreating && (
-          <Marker 
+          <Marker
             position={[newIncidentPosition.lat, newIncidentPosition.lng]}
             icon={getCustomIcon(newIncidentData.type)}
           >
@@ -301,30 +301,30 @@ const MapView = ({
                 style={{ marginBottom: 6, width: "100%" }}
               />
               <div style={{ display: "flex", gap: 8, justifyContent: "space-between", width: "100%" }}>
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation(); // Empêche la propagation du clic
                     handleCreateIncident();
                   }}
-                  style={{ 
-                    backgroundColor: "#4CAF50", 
-                    color: "white", 
-                    border: "none", 
+                  style={{
+                    backgroundColor: "#4CAF50",
+                    color: "white",
+                    border: "none",
                     padding: "8px 12px",
                     borderRadius: "4px"
                   }}
                 >
                   Créer
                 </button>
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation(); // Empêche la propagation du clic
                     cancelCreation();
                   }}
-                  style={{ 
-                    backgroundColor: "#f44336", 
-                    color: "white", 
-                    border: "none", 
+                  style={{
+                    backgroundColor: "#f44336",
+                    color: "white",
+                    border: "none",
                     padding: "8px 12px",
                     borderRadius: "4px"
                   }}
@@ -336,7 +336,7 @@ const MapView = ({
             </Popup>
           </Marker>
         )}
-        
+
         {/* Incidents existants */}
         {incidents &&
           incidents.map((inc) =>

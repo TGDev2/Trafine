@@ -37,6 +37,7 @@
     flex-direction: column;
     gap: 18px;
   }
+
   .stats-container {
     padding: 12px;
   }
@@ -99,6 +100,7 @@
   font-weight: bold;
   margin-bottom: 16px;
 }
+
 /* Actions en haut de la page stats */
 .stats-actions {
   display: flex;
@@ -149,22 +151,27 @@
   box-shadow: 0 2px 12px rgba(52, 152, 219, 0.07);
   overflow: hidden;
 }
-.stats-table th, .stats-table td {
+
+.stats-table th,
+.stats-table td {
   padding: 16px 20px;
   text-align: center;
   font-size: 1.15em;
 }
+
 .stats-table th {
   background: #3498db;
   color: #fff;
   font-weight: 700;
   border-bottom: 2px solid #2980b9;
 }
+
 .stats-table td {
   background: #f4faff;
   color: #2c3e50;
   font-weight: 600;
 }
+
 .stats-table tr:not(:last-child) td {
   border-bottom: 1px solid #e1eaf4;
 }
@@ -173,6 +180,7 @@
 .stats-container .modern-btn.secondary {
   background: linear-gradient(90deg, #b2bec3 0%, #636e72 100%);
 }
+
 .stats-container .modern-btn.secondary:hover {
   background: linear-gradient(90deg, #636e72 0%, #b2bec3 100%);
 }

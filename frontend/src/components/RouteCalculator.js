@@ -337,14 +337,14 @@ function RouteCalculator({ socket }) {
     setSourceCoords(null);
     setDestCoords(null);
     setRoutes(null);
-    
+
     // Clear localStorage
     localStorage.removeItem('sourceInput');
     localStorage.removeItem('destinationInput');
     localStorage.removeItem('sourceCoords');
     localStorage.removeItem('destCoords');
     localStorage.removeItem('routes');
-    
+
     // Reset QR code state
     setQrCode(null);
     setShareId(null);
@@ -443,8 +443,8 @@ function RouteCalculator({ socket }) {
                   boxShadow: "0 2px 12px rgba(0,0,0,0.1)"
                 }}
               >
-                <div className="route-header" style={{ 
-                  display: "flex", 
+                <div className="route-header" style={{
+                  display: "flex",
                   justifyContent: "space-between",
                   marginBottom: "15px",
                   padding: "0 0 15px 0",
@@ -461,7 +461,7 @@ function RouteCalculator({ socket }) {
                       })()}
                     </span>
                   </div>
-                  <div style={{ 
+                  <div style={{
                     padding: "4px 12px",
                     borderRadius: "15px",
                     background: rt.recalculated ? "#fff3cd" : "#d4edda",
@@ -471,7 +471,7 @@ function RouteCalculator({ socket }) {
                     {rt.recalculated ? "Recalculé" : "Optimal"}
                   </div>
                 </div>
-                
+
                 <div className="route-instructions">
                   {rt.instructions.map((instr, i) => (
                     <div key={i} style={{
@@ -518,7 +518,7 @@ function RouteCalculator({ socket }) {
             >
               {qrLoading ? "Génération du QR code…" : "Partager l'itinéraire"}
             </button>
-            
+
             <button
               onClick={handleReset}
               style={{ marginTop: "10px", padding: "8px 12px", marginLeft: "10px" }}

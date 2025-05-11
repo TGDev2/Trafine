@@ -9,7 +9,7 @@ export default function RouteMap({ routes, className = '' }) {
 
   // Couleurs pour différencier les itinéraires
   const routeColors = ['#2980b9', '#27ae60', '#8e44ad', '#d35400', '#c0392b'];
-  
+
   // Centrage sur le premier point du premier itinéraire
   const firstCoords = routes[0].geometry.coordinates[0];
   const center = [firstCoords[1], firstCoords[0]];
