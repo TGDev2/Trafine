@@ -48,4 +48,4 @@ import { PostgisInitService } from './postgis-init.service';
     PostgisInitService,
   ],
 })
-export class AppModule {}
+export class AppModule { }

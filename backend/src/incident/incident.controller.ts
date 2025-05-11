@@ -26,7 +26,7 @@ type IncidentStatus = 'active' | 'expired' | 'archived' | 'all';
 
 @Controller('incidents')
 export class IncidentController {
-  constructor(private readonly incidentService: IncidentService) {}
+  constructor(private readonly incidentService: IncidentService) { }
 
   /** Conversion Entity → DTO (centralisée) */
   private toDto(incident: Incident): IncidentResponseDto {

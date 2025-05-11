@@ -23,7 +23,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   /* ----------  Helpers  ---------- */
   private resolveRedirectUri(requested?: string): string {
@@ -51,7 +51,7 @@ export class AuthController {
   /* ----------  OAuth Google ---------- */
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  async googleAuth(): Promise<void> {}
+  async googleAuth(): Promise<void> { }
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))

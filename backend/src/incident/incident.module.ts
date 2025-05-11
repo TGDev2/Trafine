@@ -17,4 +17,4 @@ import { ScheduleModule } from '@nestjs/schedule';
   providers: [IncidentService],
   exports: [IncidentService],
 })
-export class IncidentModule {}
+export class IncidentModule { }

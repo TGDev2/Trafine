@@ -8,7 +8,7 @@ export class MLPredictionService {
   constructor(
     @InjectRepository(Incident)
     private incidentRepository: Repository<Incident>,
-  ) {}
+  ) { }
 
   /* ------------------------------------------------------------------
    *  Données historiques

@@ -75,7 +75,8 @@ graph LR
 
 ```bash
 # 1. Clone + .env
-# 2. Build & run
+# 2. npm install pour mobile, backend et frontend
+# 3. Build & run
 docker compose -f docker/docker-compose.yml up --build
 ```
 

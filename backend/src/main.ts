@@ -25,21 +25,21 @@ async function bootstrap() {
   const httpsOptions =
     process.env.NODE_ENV === 'production'
       ? (() => {
-          if (!keyPath || !certPath)
-            throw new Error(
-              'TLS_KEY_FILE et TLS_CERT_FILE doivent être définis en production.',
-            );
-          const resolvedKey = path.resolve(keyPath);
-          const resolvedCert = path.resolve(certPath);
-          if (!fs.existsSync(resolvedKey) || !fs.existsSync(resolvedCert))
-            throw new Error(
-              `Fichiers TLS introuvables : ${resolvedKey} / ${resolvedCert}`,
-            );
-          return {
-            key: fs.readFileSync(resolvedKey),
-            cert: fs.readFileSync(resolvedCert),
-          };
-        })()
+        if (!keyPath || !certPath)
+          throw new Error(
+            'TLS_KEY_FILE et TLS_CERT_FILE doivent être définis en production.',
+          );
+        const resolvedKey = path.resolve(keyPath);
+        const resolvedCert = path.resolve(certPath);
+        if (!fs.existsSync(resolvedKey) || !fs.existsSync(resolvedCert))
+          throw new Error(
+            `Fichiers TLS introuvables : ${resolvedKey} / ${resolvedCert}`,
+          );
+        return {
+          key: fs.readFileSync(resolvedKey),
+          cert: fs.readFileSync(resolvedCert),
+        };
+      })()
       : undefined;
 
   const app = await NestFactory.create(

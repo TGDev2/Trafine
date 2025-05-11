@@ -16,7 +16,7 @@ import { UpdateUserRoleDto } from './dto/update-role.dto';
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   /**
    * Endpoint GET /users

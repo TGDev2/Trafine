@@ -22,7 +22,7 @@ export class NavigationService {
     @InjectRepository(ShareableRoute)
     private readonly shareRepo: Repository<ShareableRoute>,
     private readonly cfg: ConfigService,
-  ) {}
+  ) { }
 
   /* ---------- Calcul d’itinéraires ---------- */
   async calculateRoute(

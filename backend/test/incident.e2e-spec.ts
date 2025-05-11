@@ -114,14 +114,14 @@ describe('Incident API (e2e)', () => {
       denied: false,
       votes: [],
     });
-  
+
     // Déclenchement manuel du nettoyage
     await incidentService.cleanExpiredIncidents();
-  
+
     const updatedIncident = await incidentRepository.findOneBy({ id: expiredIncident.id });
     expect(updatedIncident).not.toBeNull(); // Vérifie que l'incident existe
     if (updatedIncident) {
       expect(updatedIncident.status).toBe('expired');
     }
-  });  
+  });
 });

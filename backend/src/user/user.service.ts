@@ -13,7 +13,7 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   /* ----------  Recherche & création  ---------- */
   async findByUsername(username: string): Promise<User | null> {

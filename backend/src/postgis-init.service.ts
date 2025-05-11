@@ -14,7 +14,7 @@ import { DataSource } from 'typeorm';
 export class PostgisInitService implements OnApplicationBootstrap {
   private readonly logger = new Logger(PostgisInitService.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly dataSource: DataSource) { }
 
   async onApplicationBootstrap(): Promise<void> {
     try {

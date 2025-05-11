@@ -27,7 +27,7 @@ export class NavigationController {
   constructor(
     private readonly nav: NavigationService,
     private readonly alerts: AlertsGateway,
-  ) {}
+  ) { }
 
   /* ------ Calcul simple ------ */
   @Post('calculate')

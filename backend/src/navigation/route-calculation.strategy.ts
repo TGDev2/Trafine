@@ -51,7 +51,7 @@ export interface RouteCalculationStrategy {
  */
 @Injectable()
 export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
-  constructor(private readonly incidentService: IncidentService) {}
+  constructor(private readonly incidentService: IncidentService) { }
 
   private parseCoordinates(
     coordinateStr: string,
@@ -189,15 +189,15 @@ export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
     } else {
       instr1 = rec1
         ? [
-            `Départ de ${source}`,
-            `${incidentsOnRoute} incident(s) proche(s), itinéraire ajusté`,
-            `Arrivée à ${destination}`,
-          ]
+          `Départ de ${source}`,
+          `${incidentsOnRoute} incident(s) proche(s), itinéraire ajusté`,
+          `Arrivée à ${destination}`,
+        ]
         : [
-            `Départ de ${source}`,
-            'Suivre route principale',
-            `Arrivée à ${destination}`,
-          ];
+          `Départ de ${source}`,
+          'Suivre route principale',
+          `Arrivée à ${destination}`,
+        ];
     }
 
     // Construction minimaliste des étapes
@@ -247,15 +247,15 @@ export class RouteCalculationStrategyImpl implements RouteCalculationStrategy {
     } else {
       instr2 = rec2
         ? [
-            `Départ de ${source}`,
-            'Alternative évitant zones à incidents',
-            `Arrivée à ${destination}`,
-          ]
+          `Départ de ${source}`,
+          'Alternative évitant zones à incidents',
+          `Arrivée à ${destination}`,
+        ]
         : [
-            `Départ de ${source}`,
-            'Suivre route principale',
-            `Arrivée à ${destination}`,
-          ];
+          `Départ de ${source}`,
+          'Suivre route principale',
+          `Arrivée à ${destination}`,
+        ];
     }
 
     const steps2: RouteStep[] = steps1.map((st) => ({ ...st }));

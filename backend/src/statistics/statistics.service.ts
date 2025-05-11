@@ -10,7 +10,7 @@ export class StatisticsService {
     @InjectRepository(Incident)
     private incidentRepository: Repository<Incident>,
     private readonly mlPredictionService: MLPredictionService,
-  ) {}
+  ) { }
 
   /* ------------------------------------------------------------------
    *  Statistiques globales

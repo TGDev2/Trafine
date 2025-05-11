@@ -10,4 +10,4 @@ import { MLPredictionService } from './ml-prediction.service';
   controllers: [StatisticsController],
   providers: [StatisticsService, MLPredictionService],
 })
-export class StatisticsModule {}
+export class StatisticsModule { }

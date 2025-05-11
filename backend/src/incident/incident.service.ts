@@ -24,7 +24,7 @@ export class IncidentService {
     @InjectRepository(IncidentVote)
     private incidentVoteRepository: Repository<IncidentVote>,
     private alertsGateway: AlertsGateway,
-  ) {}
+  ) { }
 
   /**
    * Archive définitivement un incident (modération manuelle).
@@ -68,7 +68,7 @@ export class IncidentService {
     this.alertsGateway.broadcastIncidentAlert(savedIncident);
     return savedIncident;
   }
-  
+
   /* ----------  Mise à jour  ---------- */
   async updateIncident(
     incidentId: number,
@@ -137,8 +137,8 @@ export class IncidentService {
       .createQueryBuilder('incident')
       .where(
         'ST_DWithin(incident.location::geography,' +
-          ' ST_SetSRID(ST_MakePoint(:lon, :lat),4326)::geography,' +
-          ' :distance)',
+        ' ST_SetSRID(ST_MakePoint(:lon, :lat),4326)::geography,' +
+        ' :distance)',
         { lat: latitude, lon: longitude, distance: distanceInMeters },
       )
       .andWhere('incident.status = :status', { status: 'active' })

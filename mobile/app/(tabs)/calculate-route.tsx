@@ -123,9 +123,8 @@ function translateInstruction(instruction: string): string {
         east: "est",
         west: "ouest",
       };
-      return `Dirigez-vous vers le ${
-        directions[dir.toLowerCase() as keyof typeof directions]
-      }`;
+      return `Dirigez-vous vers le ${directions[dir.toLowerCase() as keyof typeof directions]
+        }`;
     })
     .replace(/Turn right/gi, "Tournez à droite")
     .replace(/Turn left/gi, "Tournez à gauche")
@@ -140,7 +139,17 @@ function translateInstruction(instruction: string): string {
     .replace(/toward/gi, "vers")
     .replace(/Arrive at/gi, "Arrivée à")
     .replace(/destination/gi, "destination")
-    .replace(/You have arrived/gi, "Vous êtes arrivé");
+    .replace(/You have arrived/gi, "Vous êtes arrivé")
+    .replace(/You have arrived/gi, "Vous êtes arrivé")
+    .replace(/nordeast/gi, "nord est")
+    .replace(/nordwest/gi, "nord ouest")
+    .replace(/southeast/gi, "sud est")
+    .replace(/southwest/gi, "sud ouest")
+    .replace(/Continue on/gi, "Continuez sur")
+    .replace(/on/gi, "sur")
+    .replace(/onto/gi, "sur")
+    .replace(/in/gi, "dans")
+    .replace(/for/gi, "pour");
 }
 
 /* ================ Composant principal ================ */

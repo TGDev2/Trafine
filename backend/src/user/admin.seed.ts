@@ -15,7 +15,7 @@ export class AdminSeed implements OnModuleInit {
   constructor(
     private readonly config: ConfigService,
     private readonly userService: UserService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const username = this.config.get<string>('ADMIN_USERNAME');

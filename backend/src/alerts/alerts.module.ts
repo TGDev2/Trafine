@@ -11,4 +11,4 @@ import { JwtModule } from '@nestjs/jwt';
   providers: [AlertsGateway],
   exports: [AlertsGateway],
 })
-export class AlertsModule {}
+export class AlertsModule { }

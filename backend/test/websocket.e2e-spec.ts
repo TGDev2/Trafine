@@ -35,7 +35,7 @@ describe('WebSocket Gateway (e2e)', () => {
 
   it('should connect to websocket server', (done) => {
     socket.connect();
-    
+
     socket.on('connect', () => {
       expect(socket.connected).toBeTruthy();
       done();
