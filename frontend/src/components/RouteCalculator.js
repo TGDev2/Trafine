@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import RouteMap from "./RouteMap";
 import { geocode } from "../utils/geocode";
 import { useAuth } from "../contexts/AuthContext";
-import { apiFetch } from "../utils/api";
+import { apiFetch, API_BASE } from "../utils/api";
 // Suppression de l'import dupliqué de Link
 import "../style/routeCalculator.css";
 
@@ -267,7 +267,7 @@ function RouteCalculator({ socket }) {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:3000/navigation/share", {
+      const response = await fetch(`${API_BASE}/navigation/share`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
