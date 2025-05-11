@@ -266,7 +266,7 @@ export default function NavigationScreen() {
       }
     })();
 
-    // Configurer un intervalle pour rafraîchir la position toutes les 3 secondes
+    // Configurer un intervalle pour rafraîchir la position toutes les 10 secondes
     const positionInterval = setInterval(async () => {
       try {
         const loc = await Location.getCurrentPositionAsync({});
@@ -372,8 +372,11 @@ export default function NavigationScreen() {
           <Marker
             coordinate={currentLocation}
             title="Ma position"
-            pinColor="blue"
-          />
+          >
+            <View style={styles.carMarker}>
+              <Text style={styles.carEmoji}>🚗</Text>
+            </View>
+          </Marker>
         )}
       </MapView>
 

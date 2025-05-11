@@ -69,20 +69,42 @@ export const styles = StyleSheet.create({
      alignItems: "center", 
    }, 
    cancelButtonText: { color: "white", fontWeight: "bold" }, 
-   customMarker: { 
-     backgroundColor: 'red', 
-     padding: 10, 
-     borderRadius: 25, // Augmenté de 20 à 25 
-     borderWidth: 3,   // Augmenté de 2 à 3 
-     borderColor: 'white', 
-     width: 50,        // Augmenté de 40 à 50 
-     height: 50,       // Augmenté de 40 à 50 
-     justifyContent: 'center', 
-     alignItems: 'center', 
-   }, 
+   customMarker: {
+     backgroundColor: '#0a7ea4',
+     padding: 8,
+     borderRadius: 20,
+     alignItems: 'center',
+     justifyContent: 'center',
+     elevation: 5,
+     shadowColor: '#000',
+     shadowOffset: {
+       width: 0,
+       height: 2,
+     },
+     shadowOpacity: 0.25,
+     shadowRadius: 3.84,
+   },
    markerText: { 
      color: 'white', 
      fontWeight: 'bold', 
-     fontSize: 18,     // Augmenté de 16 à 18 
+     fontSize: 18,     
+   },
+   carMarker: { 
+     backgroundColor: 'white', 
+     padding: 4,
+     borderRadius: 15,
+     borderWidth: 2, 
+     borderColor: '#0a7ea4', 
+     shadowColor: "#000", 
+     shadowOffset: { 
+       width: 0, 
+       height: 2, 
+     }, 
+     shadowOpacity: 0.25, 
+     shadowRadius: 3.84, 
+     elevation: 5, 
+   }, 
+   carEmoji: { 
+     fontSize: 18,
    },
 });
