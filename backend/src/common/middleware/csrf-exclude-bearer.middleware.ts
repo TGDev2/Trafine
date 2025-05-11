@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import csurf from 'csurf';
+import * as csurf from 'csurf';
 
 /**
  * CSRF middleware qui s’applique SEULEMENT lorsque la requête

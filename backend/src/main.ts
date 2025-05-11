@@ -7,7 +7,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { SanitizationPipe } from './common/filters/sanitize.pipe';
 import { ConfigService } from '@nestjs/config';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
-import cookieParser from 'cookie-parser';
+import * as cookieParser from 'cookie-parser';
 import * as csurf from 'csurf';
 import { Request, Response, NextFunction } from 'express';
 import { CsrfExceptionFilter } from './common/filters/csrf-exception.filter';
