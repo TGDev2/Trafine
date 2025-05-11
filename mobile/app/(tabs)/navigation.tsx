@@ -25,8 +25,8 @@ interface Incident {
   id: number;
   type: string;
   description?: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | string | null;
+  longitude: number | string | null;
   confirmed: boolean;
   denied: boolean;
 }
@@ -47,13 +47,23 @@ const INCIDENT_TYPES = {
 } as const;
 
 /* ------------------------------------------------------------------ */
-/* Helper pour garantir l’unicité des incidents                        */
+/* Normalisation & upsert                                              */
 /* ------------------------------------------------------------------ */
+function normalizeIncident(inc: Incident): Incident {
+  return {
+    ...inc,
+    latitude: inc.latitude === null ? NaN : Number(inc.latitude),
+    longitude: inc.longitude === null ? NaN : Number(inc.longitude),
+  };
+}
+
+/** Ajoute ou remplace un incident **après** normalisation. */
 function upsertIncident(list: Incident[], inc: Incident): Incident[] {
-  const idx = list.findIndex((i) => i.id === inc.id);
+  const safe = normalizeIncident(inc);
+  const idx = list.findIndex((i) => i.id === safe.id);
   return idx === -1
-    ? [...list, inc]
-    : list.map((i) => (i.id === inc.id ? inc : i));
+    ? [...list, safe]
+    : list.map((i) => (i.id === safe.id ? safe : i));
 }
 
 /* ------------------------------------------------------------------ */
@@ -81,9 +91,8 @@ export default function NavigationScreen() {
         Notifications.scheduleNotificationAsync({
           content: {
             title: "Nouvel incident signalé",
-            body: `${incident.type} — ${
-              incident.description || "Pas de description"
-            }`,
+            body: `${incident.type} — ${incident.description || "Pas de description"
+              }`,
             data: { incident },
           },
           trigger: null,
@@ -164,7 +173,7 @@ export default function NavigationScreen() {
       if (!response.ok) throw new Error("Échec du signalement");
 
       const newIncident: Incident = await response.json();
-      /* 🔑 Garantir l’unicité immédiatement, avant de recevoir le WS */
+      /* 🔑 Garantir l'unicité immédiatement, avant de recevoir le WS */
       setIncidents((prev) => upsertIncident(prev, newIncident));
 
       setShowIncidentModal(false);
@@ -189,42 +198,46 @@ export default function NavigationScreen() {
         style={styles.map}
         initialRegion={currentLocation ?? DEFAULT_REGION}
       >
-        {incidents.map((incident) => (
-          <Marker
-            key={incident.id}
-            coordinate={{
-              latitude: incident.latitude,
-              longitude: incident.longitude,
-            }}
-          >
-            <Callout>
-              <View style={styles.callout}>
-                <Text style={styles.title}>{incident.type}</Text>
-                <Text style={styles.description}>
-                  {incident.description || "Sans description"}
-                </Text>
-                <Text style={styles.status}>
-                  Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf :
-                  {incident.denied ? "Oui" : "Non"}
-                </Text>
-                <View style={styles.buttonContainer}>
-                  <Button
-                    title="Confirmer"
-                    onPress={() => confirmIncident(incident.id)}
-                    disabled={
-                      voteLoadingId === incident.id || incident.confirmed
-                    }
-                  />
-                  <Button
-                    title="Infirmer"
-                    onPress={() => denyIncident(incident.id)}
-                    disabled={voteLoadingId === incident.id || incident.denied}
-                  />
+        {incidents
+          .filter(
+            (i) => Number.isFinite(i.latitude) && Number.isFinite(i.longitude)
+          )
+          .map((incident) => (
+            <Marker
+              key={incident.id}
+              coordinate={{
+                latitude: incident.latitude as number,
+                longitude: incident.longitude as number,
+              }}
+            >
+              <Callout>
+                <View style={styles.callout}>
+                  <Text style={styles.title}>{incident.type}</Text>
+                  <Text style={styles.description}>
+                    {incident.description || "Sans description"}
+                  </Text>
+                  <Text style={styles.status}>
+                    Confirmé : {incident.confirmed ? "Oui" : "Non"} | Inf :
+                    {incident.denied ? "Oui" : "Non"}
+                  </Text>
+                  <View style={styles.buttonContainer}>
+                    <Button
+                      title="Confirmer"
+                      onPress={() => confirmIncident(incident.id)}
+                      disabled={
+                        voteLoadingId === incident.id || incident.confirmed
+                      }
+                    />
+                    <Button
+                      title="Infirmer"
+                      onPress={() => denyIncident(incident.id)}
+                      disabled={voteLoadingId === incident.id || incident.denied}
+                    />
+                  </View>
                 </View>
-              </View>
-            </Callout>
-          </Marker>
-        ))}
+              </Callout>
+            </Marker>
+          ))}
 
         {currentLocation && (
           <Marker
