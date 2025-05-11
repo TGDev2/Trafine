@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Button, StyleSheet, Alert, FlatList } from "react-native";
 import { Camera, CameraView, BarcodeScanningResult } from "expo-camera";
+import { API_URL } from "@/constants/API";
 
 interface RouteDTO {
   source: string;
@@ -25,6 +26,40 @@ export default function ScanQRScreen() {
   }, []);
 
   /* ---------- Callback scan QR ---------- */
+  /** ----------------------------------------------------------------------------
+   *  Helpers
+   *  -------------------------------------------------------------------------- */
+  /** Normalise une URL : remplace localhost / 127.0.0.1 par l'hôte d'API_URL. */
+  const normalizeHost = (raw: string): string => {
+    try {
+      const parsed = new URL(raw);
+      if (["localhost", "127.0.0.1"].includes(parsed.hostname.toLowerCase())) {
+        const api = new URL(API_URL);
+        parsed.hostname = api.hostname;
+        parsed.port = api.port; // garde http / https
+        return parsed.toString();
+      }
+      return raw;
+    } catch {
+      return raw; // pas une URL valide → on renverra tel quel
+    }
+  };
+
+  /** Essaye de récupérer {routes:[…]} à partir d'une URL. */
+  const fetchRoutes = async (url: string): Promise<RouteDTO[] | null> => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return Array.isArray(json?.routes) ? json.routes : null;
+    } catch {
+      return null;
+    }
+  };
+
+  /** --------------------------------------------------------------------------
+   *  Callback scan
+   *  ------------------------------------------------------------------------ */
   const handleScan = async ({ data }: BarcodeScanningResult) => {
     setScanned(true);
 
@@ -33,22 +68,49 @@ export default function ScanQRScreen() {
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed?.routes)) return setRoutes(parsed.routes);
       if (Array.isArray(parsed)) return setRoutes(parsed);
-    } catch (err) {
-      console.warn("Échec JSON.parse dans ScanQRScreen :", err);
+    } catch {
+      /* pas du JSON → on continue */
     }
 
-    /* ---------- 2. QR contient une URL de partage ---------- */
-    try {
-      if (data.startsWith("http")) {
-        const res = await fetch(data);
-        if (!res.ok) throw new Error();
-        const { routes } = await res.json();
-        return setRoutes(routes);
+    /* ---------- 2. QR contient (ou finit par) une URL ---------- */
+    if (data.startsWith("http")) {
+      /* a. URL telle quelle */
+      const direct = await fetchRoutes(data);
+      if (direct) return setRoutes(direct);
+
+      /* b. URL normalisée (localhost → API_URL) */
+      const normalised = await fetchRoutes(normalizeHost(data));
+      if (normalised) return setRoutes(normalised);
+
+      /* c. même path mais base API_URL (utile si scan /share/ID d'un autre host) */
+      try {
+        const scanned = new URL(data);
+        const api = new URL(API_URL);
+        api.pathname = scanned.pathname;
+        api.search = scanned.search;
+        const fallback = await fetchRoutes(api.toString());
+        if (fallback) return setRoutes(fallback);
+      } catch {
+        /* ignore */
       }
-    } catch (err) {
-      console.warn("Échec fetch de l'URL scannée dans ScanQRScreen :", err);
     }
 
+    /* ---------- 3. QR ne contient qu'un identifiant (shareId) ---------- */
+    if (/^[a-f0-9-]{24,36}$/i.test(data.trim())) {
+      const id = data.trim();
+      /* On teste d’abord le nouvel alias, puis l’ancien chemin */
+      const candidates = [
+        `${API_URL.replace(/\/$/, "")}/share/${id}`,
+        `${API_URL.replace(/\/$/, "")}/navigation/share/${id}`,
+      ];
+
+      for (const url of candidates) {
+        const byId = await fetchRoutes(url);
+        if (byId) return setRoutes(byId);
+      }
+    }
+
+    /* ---------- Échec final ---------- */
     Alert.alert(
       "QR Code invalide",
       "Le QR code scanné ne contient pas d'itinéraire exploitable."

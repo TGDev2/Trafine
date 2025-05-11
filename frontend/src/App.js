@@ -6,6 +6,7 @@ import Register from "./components/Register";
 import Stats from "./components/Stats";
 import ManageUsers from "./components/ManageUsers";
 import RouteCalculator from "./components/RouteCalculator";
+import ShareRoute from "./components/ShareRoute";
 import "./App.css";
 import { useAuth } from "./contexts/AuthContext";
 
@@ -44,6 +45,8 @@ export default function App() {
       */}
       <main>
         <Routes>
+          {/* --- page publique d'itinéraire partagé --- */}
+          <Route path="/share/:shareId" element={<ShareRoute />} />
           <Route
             path="/"
             element={

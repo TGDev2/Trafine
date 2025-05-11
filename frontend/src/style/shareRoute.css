@@ -1,0 +1,58 @@
+.share-layout {
+    font-family: Arial, sans-serif;
+    padding: 70px 16px 32px;
+}
+
+.share-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #2c3e50;
+    color: #ecf0f1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 20px;
+    z-index: 100;
+}
+
+.share-header .logo {
+    height: 40px;
+}
+
+.share-main {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.share-map {
+    margin-bottom: 24px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.share-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    margin-bottom: 24px;
+}
+
+.share-card h3 {
+    margin-top: 0;
+    color: #2980b9;
+}
+
+.share-instr {
+    margin: 12px 0 0 18px;
+}
+
+.share-loading,
+.share-empty,
+.share-error {
+    text-align: center;
+    margin-top: 80px;
+}

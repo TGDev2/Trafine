@@ -267,15 +267,19 @@ function RouteCalculator({ socket }) {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/navigation/share`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: sourceCoords,
-          destination: destCoords,
-          avoidTolls,
-        }),
-      });
+      const response = await apiFetch(
+        "/navigation/share",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: sourceCoords,
+            destination: destCoords,
+            avoidTolls,
+          }),
+        },
+        { token, refreshToken, refreshSession, logout }
+      );
       if (!response.ok)
         throw new Error("Erreur lors de la génération du QR code");
 

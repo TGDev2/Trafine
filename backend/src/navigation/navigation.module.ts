@@ -7,6 +7,7 @@ import { IncidentModule } from '../incident/incident.module';
 import { OrsRouteCalculationStrategy } from './ors-route-calculation.strategy';
 import { RouteCalculationStrategyImpl } from './route-calculation.strategy';
 import { ShareableRoute } from './entities/shareable-route.entity';
+import { ShareRedirectController } from './share-redirect.controller';
 import { IncidentService } from '../incident/incident.service';
 import { AlertsModule } from '../alerts/alerts.module';
 import {
@@ -43,7 +44,7 @@ const RouteStrategyProvider = {
     IncidentModule,
     AlertsModule,
   ],
-  controllers: [NavigationController],
+  controllers: [NavigationController, ShareRedirectController],
   providers: [
     NavigationService,
     RouteStrategyProvider,
