@@ -7,12 +7,13 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { SanitizationPipe } from './common/filters/sanitize.pipe';
 import { ConfigService } from '@nestjs/config';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 import * as csurf from 'csurf';
 import { Request, Response, NextFunction } from 'express';
 import { CsrfExceptionFilter } from './common/filters/csrf-exception.filter';
 import * as fs from 'fs';
 import * as path from 'path';
+import { csrfExcludeBearer } from './common/middleware/csrf-exclude-bearer.middleware';
 
 async function bootstrap() {
   /* ------------------------------------------------------------------
@@ -69,40 +70,17 @@ async function bootstrap() {
 
   /* ----------------------- CSRF ----------------------------- */
   if (process.env.NODE_ENV !== 'test') {
-    /**
-     * 1. Le **secret** est stocké par `csurf` dans le cookie HTTP-only **`_csrf`**
-     * 2. On expose le **token** (dérivé du secret) au client via un cookie
-     *    accessible JS `XSRF-TOKEN` afin que le front puisse le renvoyer
-     *    dans l’en-tête `X-CSRF-Token`.
-     */
-    const csrfMw = csurf({
-      cookie: {
-        key: '_csrf',
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-      },
-      ignoreMethods: ['GET', 'HEAD', 'OPTIONS'],
-    });
+    // ✅  nouvelle protection : CSRF appliqué sauf si JWT Bearer présent
+    app.use(csrfExcludeBearer);
 
+    // (optionnel mais recommandé) — renvoie automatiquement un XSRF-TOKEN
     app.use((req: Request, res: Response, next: NextFunction) => {
-      const isAuthRoute = req.path.startsWith('/auth');
-      const isNavBypass =
-        req.path.startsWith('/navigation/share') ||
-        req.path.startsWith('/navigation/push') ||
-        req.path.startsWith('/navigation/calculate');
-
-      if (isAuthRoute || isNavBypass) return next();
-      return csrfMw(req, res, next);
-    });
-
-    /* Injecte le token dans le cookie lisible par le client */
-    app.use((req: Request, res: Response, next: NextFunction) => {
-      const tokenFn = (req as any).csrfToken as (() => string) | undefined;
-      if (tokenFn) {
-        res.cookie('XSRF-TOKEN', tokenFn(), {
-          sameSite: 'strict',
+      // si le middleware précédent a défini req.csrfToken, on pousse le cookie
+      // (uniquement pour le front web)
+      if (typeof (req as any).csrfToken === 'function') {
+        res.cookie('XSRF-TOKEN', (req as any).csrfToken(), {
+          httpOnly: false,
+          sameSite: 'lax',
           secure: process.env.NODE_ENV === 'production',
           path: '/',
         });
